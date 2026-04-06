@@ -285,7 +285,7 @@ export function useSourceSystems() {
       // Use safe view to avoid exposing api_key/webhook_secret to operators
       const { data, error } = await supabase.from("source_systems_safe" as any).select("*").order("name");
       if (error) throw error;
-      return data as Array<{ id: string; name: string; code: string; active: boolean; notes: string | null; created_at: string; updated_at: string }>;
+      return data as unknown as Array<{ id: string; name: string; code: string; active: boolean; notes: string | null; created_at: string; updated_at: string }>;
     },
   });
 }
