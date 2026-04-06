@@ -29,7 +29,7 @@ export default function CreateOrder() {
     address_text: "",
     delivery_note: "",
     payment_method: "",
-    payment_status: "unpaid" as const,
+    payment_status: "unpaid" as "unpaid" | "cash_on_delivery" | "paid" | "refunded",
     delivery_fee: "",
     customer_note: "",
     source_channel: "manual",
@@ -42,7 +42,7 @@ export default function CreateOrder() {
   const removeItem = (i: number) => setItems(items.filter((_, idx) => idx !== i));
   const updateItem = (i: number, field: keyof ItemRow, value: string | number) => {
     const next = [...items];
-    (next[i] as Record<string, unknown>)[field] = value;
+    next[i] = { ...next[i], [field]: value };
     setItems(next);
   };
 
