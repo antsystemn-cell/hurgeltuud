@@ -76,15 +76,28 @@ export default function OrderList() {
             <div key={order.id} className="bg-card border border-border rounded-xl p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium text-foreground">{order.customer_name}</p>
-                    <a href={`tel:${order.phone}`} className="text-primary"><Phone className="h-4 w-4" /></a>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {order.internal_order_number}
-                    {order.source_systems && ` • ${(order.source_systems as { name: string }).name}`}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{order.district} — {order.address_text}</p>
+                  <p className="font-medium text-foreground">{order.customer_name}</p>
+                   <div className="flex items-center gap-2">
+                     <a href={`tel:${order.phone}`} className="text-primary font-medium text-sm flex items-center gap-1">
+                       <Phone className="h-3.5 w-3.5" />
+                       {order.phone}
+                     </a>
+                   </div>
+                   <p className="text-xs text-muted-foreground">
+                     {order.internal_order_number}
+                     {order.source_systems && ` • ${(order.source_systems as { name: string }).name}`}
+                   </p>
+                   <p className="text-sm text-muted-foreground">{order.district} — {order.address_text}</p>
+                   {(order as any).order_items?.length > 0 && (
+                     <div className="text-xs text-muted-foreground mt-1">
+                       {(order as any).order_items.map((item: any, i: number) => (
+                         <span key={item.id}>
+                           {item.product_name_snapshot} ×{item.quantity}
+                           {i < (order as any).order_items.length - 1 && ", "}
+                         </span>
+                       ))}
+                     </div>
+                   )}
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <Badge variant="secondary" className="text-xs">{FULFILLMENT_LABELS[order.fulfillment_status]}</Badge>
