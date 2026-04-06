@@ -106,6 +106,45 @@ export function useDriverOrders(driverId: string, statusFilter?: string) {
   });
 }
 
+// Fire-and-forget webhook to sync status back to shop.only.mn
+async function fireShopWebhook(orderId: string) {
+  try {
+    const { data: order } = await supabase
+      .from("orders")
+      .select("external_order_id, fulfillment_status, payment_status, source_system_id, delivery_note")
+      .eq("id", orderId)
+      .single();
+
+    if (!order?.external_order_id?.startsWith("SHOP-") || !order.source_system_id) return;
+
+    const { data: source } = await supabase
+      .from("source_systems")
+      .select("api_key")
+      .eq("id", order.source_system_id)
+      .single();
+
+    if (!source?.api_key) return;
+
+    const WEBHOOK_URL = "https://oaqegsepcakxtspufyje.supabase.co/functions/v1/delivery-status-webhook";
+
+    fetch(WEBHOOK_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": source.api_key,
+      },
+      body: JSON.stringify({
+        external_order_id: order.external_order_id,
+        fulfillment_status: order.fulfillment_status,
+        payment_status: order.payment_status,
+        note: order.delivery_note || undefined,
+      }),
+    }).catch((err) => console.error("Shop webhook failed:", err));
+  } catch (err) {
+    console.error("Shop webhook prep failed:", err);
+  }
+}
+
 export function useUpdateOrderStatus() {
   const qc = useQueryClient();
   return useMutation({
@@ -129,6 +168,9 @@ export function useUpdateOrderStatus() {
 
       const { error } = await supabase.from("orders").update(updates).eq("id", orderId);
       if (error) throw error;
+
+      // Fire-and-forget: sync status to shop
+      fireShopWebhook(orderId);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
   });
@@ -187,6 +229,9 @@ export function useUpdatePaymentStatus() {
         .update({ payment_status: status, updated_by_user_id: userId })
         .eq("id", orderId);
       if (error) throw error;
+
+      // Fire-and-forget: sync status to shop
+      fireShopWebhook(orderId);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
   });
