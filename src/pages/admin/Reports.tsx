@@ -17,7 +17,7 @@ export default function Reports() {
 
   // By driver
   const byDriver = drivers?.map((d) => ({
-    name: (d.profiles as unknown as { full_name: string }).full_name,
+    name: d.profiles.full_name,
     count: orders?.filter((o) => o.assigned_driver_user_id === d.user_id).length || 0,
   })) || [];
 

@@ -192,16 +192,43 @@ export function useUpdatePaymentStatus() {
   });
 }
 
+export function useDeleteOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      // Delete items first, then order
+      const { error: itemsErr } = await supabase.from("order_items").delete().eq("order_id", orderId);
+      if (itemsErr) throw itemsErr;
+      const { error } = await supabase.from("orders").delete().eq("id", orderId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
+  });
+}
+
 export function useDrivers() {
   return useQuery({
     queryKey: ["drivers"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Get driver role entries
+      const { data: roles, error: rolesErr } = await supabase
         .from("user_roles")
-        .select("user_id, profiles!inner(full_name, phone, active)")
+        .select("user_id")
         .eq("role", "driver");
-      if (error) throw error;
-      return data;
+      if (rolesErr) throw rolesErr;
+      if (!roles?.length) return [];
+
+      const driverIds = roles.map((r) => r.user_id);
+      const { data: profiles, error: profErr } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, phone, active")
+        .in("user_id", driverIds);
+      if (profErr) throw profErr;
+
+      return (profiles || []).map((p) => ({
+        user_id: p.user_id,
+        profiles: { full_name: p.full_name, phone: p.phone, active: p.active },
+      }));
     },
   });
 }
