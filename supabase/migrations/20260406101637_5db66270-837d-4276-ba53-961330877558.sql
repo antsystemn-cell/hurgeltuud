@@ -1,0 +1,2 @@
+UPDATE source_systems SET api_key = 'sk_' || replace(gen_random_uuid()::text, '-', '') WHERE id = '0e94d333-5ffe-424c-92af-9d8ebe522862' AND api_key IS NULL;
+UPDATE source_systems SET api_key = 'sk_' || replace(gen_random_uuid()::text, '-', '') WHERE id = 'ce5e5af2-49e2-41e7-8f4f-cd759ef0a4ae' AND api_key IS NULL;
