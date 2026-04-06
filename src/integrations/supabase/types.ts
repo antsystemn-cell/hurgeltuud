@@ -193,13 +193,6 @@ export type Database = {
             referencedRelation: "source_systems"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "orders_source_system_id_fkey"
-            columns: ["source_system_id"]
-            isOneToOne: false
-            referencedRelation: "source_systems_safe"
-            referencedColumns: ["id"]
-          },
         ]
       }
       profiles: {
@@ -344,49 +337,25 @@ export type Database = {
             referencedRelation: "source_systems"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "webhook_logs_source_system_id_fkey"
-            columns: ["source_system_id"]
-            isOneToOne: false
-            referencedRelation: "source_systems_safe"
-            referencedColumns: ["id"]
-          },
         ]
       }
     }
     Views: {
-      source_systems_safe: {
-        Row: {
-          active: boolean | null
-          code: string | null
-          created_at: string | null
-          id: string | null
-          name: string | null
-          notes: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          active?: boolean | null
-          code?: string | null
-          created_at?: string | null
-          id?: string | null
-          name?: string | null
-          notes?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          active?: boolean | null
-          code?: string | null
-          created_at?: string | null
-          id?: string | null
-          name?: string | null
-          notes?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
+      get_source_systems_safe: {
+        Args: never
+        Returns: {
+          active: boolean
+          code: string
+          created_at: string
+          id: string
+          name: string
+          notes: string
+          updated_at: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
