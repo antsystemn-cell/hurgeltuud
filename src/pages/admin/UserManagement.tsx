@@ -17,12 +17,18 @@ export default function UserManagement() {
   const { data: users, isLoading } = useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: profiles, error } = await supabase
         .from("profiles")
-        .select("*, user_roles(role)")
+        .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+
+      // Fetch roles separately
+      const { data: roles } = await supabase.from("user_roles").select("*");
+      return profiles.map((p) => ({
+        ...p,
+        roles: roles?.filter((r) => r.user_id === p.user_id).map((r) => r.role) || [],
+      }));
     },
   });
 
