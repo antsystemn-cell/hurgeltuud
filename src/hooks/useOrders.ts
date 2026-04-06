@@ -250,10 +250,10 @@ export function useSourceSystems() {
   return useQuery({
     queryKey: ["source_systems"],
     queryFn: async () => {
-      // Use safe view to avoid exposing api_key/webhook_secret to operators
-      const { data, error } = await supabase.from("source_systems_safe" as any).select("*").order("name");
+      // Use security definer RPC to avoid exposing api_key/webhook_secret to operators
+      const { data, error } = await supabase.rpc("get_source_systems_safe");
       if (error) throw error;
-      return data as unknown as Array<{ id: string; name: string; code: string; active: boolean; notes: string | null; created_at: string; updated_at: string }>;
+      return data as Array<{ id: string; name: string; code: string; active: boolean; notes: string | null; created_at: string; updated_at: string }>;
     },
   });
 }
