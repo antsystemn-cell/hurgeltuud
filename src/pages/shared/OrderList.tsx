@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { useOrders, useDrivers, useSourceSystems, useUpdateOrderStatus, useAssignDriver, useUpdatePaymentStatus, FULFILLMENT_LABELS, PAYMENT_LABELS, type FulfillmentStatus, type PaymentStatus } from "@/hooks/useOrders";
+import { useOrders, useDrivers, useSourceSystems, useUpdateOrderStatus, useAssignDriver, useUpdatePaymentStatus, useDeleteOrder, FULFILLMENT_LABELS, PAYMENT_LABELS, type FulfillmentStatus, type PaymentStatus } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Phone } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Search, Phone, Trash2 } from "lucide-react";
 
 export default function OrderList() {
   const { user } = useAuth();
@@ -25,6 +26,7 @@ export default function OrderList() {
   const updateStatus = useUpdateOrderStatus();
   const assignDriver = useAssignDriver();
   const updatePayment = useUpdatePaymentStatus();
+  const deleteOrder = useDeleteOrder();
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto">
@@ -125,11 +127,35 @@ export default function OrderList() {
                   <SelectContent>
                     {drivers?.map((d) => (
                       <SelectItem key={d.user_id} value={d.user_id}>
-                        {(d.profiles as unknown as { full_name: string }).full_name}
+                        {d.profiles.full_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-9 text-destructive hover:text-destructive">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Захиалга устгах уу?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {order.internal_order_number} — {order.customer_name} захиалгыг бүрмөсөн устгана. Энэ үйлдлийг буцаах боломжгүй.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Болих</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={() => deleteOrder.mutate(order.id)}
+                      >
+                        Устгах
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           ))}
