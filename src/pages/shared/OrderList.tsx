@@ -59,7 +59,7 @@ export default function OrderList() {
             <SelectItem value="all">Бүх жолооч</SelectItem>
             {drivers?.map((d) => (
               <SelectItem key={d.user_id} value={d.user_id}>
-                {(d.profiles as unknown as { full_name: string }).full_name}
+                {d.profiles.full_name}
               </SelectItem>
             ))}
           </SelectContent>
