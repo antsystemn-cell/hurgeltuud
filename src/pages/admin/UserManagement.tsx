@@ -108,7 +108,7 @@ export default function UserManagement() {
                 <p className="text-xs text-muted-foreground">{u.user_id}</p>
               </div>
               <div className="text-xs text-muted-foreground">
-                {u.user_roles?.map((r: { role: string }) => r.role).join(", ") || "Эрхгүй"}
+                {u.roles.join(", ") || "Эрхгүй"}
               </div>
             </div>
           ))}
