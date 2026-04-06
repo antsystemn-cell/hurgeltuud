@@ -1,10 +1,20 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useDriverOrders, useUpdateOrderStatus, FULFILLMENT_LABELS, PAYMENT_LABELS } from "@/hooks/useOrders";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Phone, MapPin, CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const FILTERS = [
   { key: "active", label: "Идэвхтэй" },
@@ -104,36 +114,92 @@ export default function DriverDashboard() {
                 </p>
               )}
 
-              {/* Actions */}
-              <div className="flex gap-2">
-                <a
-                  href={`tel:${order.phone}`}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
-                >
-                  <Phone className="h-4 w-4" />
-                  Залгах
-                </a>
+              {/* Actions - 3 buttons in a row */}
+              <div className="grid grid-cols-3 gap-2">
+                {/* Call button with confirmation */}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button className="flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
+                      <Phone className="h-4 w-4" />
+                      <span className="text-xs">Залгах</span>
+                      <span className="text-[10px] opacity-80 leading-tight">{order.phone}</span>
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Залгах уу?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {order.customer_name} — {order.phone} руу залгах гэж байна.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Үгүй</AlertDialogCancel>
+                      <AlertDialogAction asChild>
+                        <a href={`tel:${order.phone}`}>Тийм</a>
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
 
-                {order.fulfillment_status !== "delivered" && order.fulfillment_status !== "cancelled" && (
+                {order.fulfillment_status !== "delivered" && order.fulfillment_status !== "cancelled" ? (
                   <>
-                    <Button
-                      size="lg"
-                      className="flex-1 bg-success text-success-foreground hover:bg-success/90"
-                      onClick={() => handleMarkDelivered(order.id)}
-                      disabled={updateStatus.isPending}
-                    >
-                      <CheckCircle2 className="h-5 w-5 mr-1" />
-                      Хүргэсэн
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="destructive"
-                      onClick={() => handleMarkCancelled(order.id)}
-                      disabled={updateStatus.isPending}
-                    >
-                      <XCircle className="h-5 w-5" />
-                    </Button>
+                    {/* Delivered button with confirmation */}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button
+                          className="flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-medium disabled:opacity-50"
+                          disabled={updateStatus.isPending}
+                        >
+                          <CheckCircle2 className="h-5 w-5" />
+                          <span className="text-xs">Хүргэсэн</span>
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Хүргэсэн гэж тэмдэглэх үү?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {order.customer_name} — {order.internal_order_number} захиалгыг хүргэсэн гэж тэмдэглэнэ.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Үгүй</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleMarkDelivered(order.id)}>Тийм</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    {/* Cancelled button with confirmation */}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button
+                          className="flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium disabled:opacity-50"
+                          disabled={updateStatus.isPending}
+                        >
+                          <XCircle className="h-5 w-5" />
+                          <span className="text-xs">Цуцлах</span>
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Цуцлах уу?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {order.customer_name} — {order.internal_order_number} захиалгыг цуцлах гэж байна.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Үгүй</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => handleMarkCancelled(order.id)}
+                          >
+                            Тийм
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </>
+                ) : (
+                  <div className="col-span-2" />
                 )}
               </div>
             </div>
