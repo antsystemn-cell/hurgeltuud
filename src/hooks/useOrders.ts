@@ -106,43 +106,11 @@ export function useDriverOrders(driverId: string, statusFilter?: string) {
   });
 }
 
-// Fire-and-forget webhook to sync status back to shop.only.mn
-async function fireShopWebhook(orderId: string) {
-  try {
-    const { data: order } = await supabase
-      .from("orders")
-      .select("external_order_id, fulfillment_status, payment_status, source_system_id, delivery_note")
-      .eq("id", orderId)
-      .single();
-
-    if (!order?.external_order_id?.startsWith("SHOP-") || !order.source_system_id) return;
-
-    const { data: source } = await supabase
-      .from("source_systems")
-      .select("api_key")
-      .eq("id", order.source_system_id)
-      .single();
-
-    if (!source?.api_key) return;
-
-    const WEBHOOK_URL = "https://oaqegsepcakxtspufyje.supabase.co/functions/v1/delivery-status-webhook";
-
-    fetch(WEBHOOK_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": source.api_key,
-      },
-      body: JSON.stringify({
-        external_order_id: order.external_order_id,
-        fulfillment_status: order.fulfillment_status,
-        payment_status: order.payment_status,
-        note: order.delivery_note || undefined,
-      }),
-    }).catch((err) => console.error("Shop webhook failed:", err));
-  } catch (err) {
-    console.error("Shop webhook prep failed:", err);
-  }
+// Fire-and-forget: call webhook-sync edge function (server-side, no client secret exposure)
+function fireShopWebhook(orderId: string) {
+  supabase.functions.invoke("webhook-sync", {
+    body: { order_id: orderId, event_type: "status_changed" },
+  }).catch((err) => console.error("Shop webhook invoke failed:", err));
 }
 
 export function useUpdateOrderStatus() {
@@ -282,10 +250,10 @@ export function useSourceSystems() {
   return useQuery({
     queryKey: ["source_systems"],
     queryFn: async () => {
-      // Use safe view to avoid exposing api_key/webhook_secret to operators
-      const { data, error } = await supabase.from("source_systems_safe" as any).select("*").order("name");
+      // Use security definer RPC to avoid exposing api_key/webhook_secret to operators
+      const { data, error } = await supabase.rpc("get_source_systems_safe");
       if (error) throw error;
-      return data as unknown as Array<{ id: string; name: string; code: string; active: boolean; notes: string | null; created_at: string; updated_at: string }>;
+      return data as Array<{ id: string; name: string; code: string; active: boolean; notes: string | null; created_at: string; updated_at: string }>;
     },
   });
 }
