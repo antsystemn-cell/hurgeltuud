@@ -282,9 +282,10 @@ export function useSourceSystems() {
   return useQuery({
     queryKey: ["source_systems"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("source_systems").select("*").order("name");
+      // Use safe view to avoid exposing api_key/webhook_secret to operators
+      const { data, error } = await supabase.from("source_systems_safe" as any).select("*").order("name");
       if (error) throw error;
-      return data;
+      return data as unknown as Array<{ id: string; name: string; code: string; active: boolean; notes: string | null; created_at: string; updated_at: string }>;
     },
   });
 }

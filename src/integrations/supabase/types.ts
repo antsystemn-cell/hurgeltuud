@@ -193,6 +193,13 @@ export type Database = {
             referencedRelation: "source_systems"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "orders_source_system_id_fkey"
+            columns: ["source_system_id"]
+            isOneToOne: false
+            referencedRelation: "source_systems_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -337,11 +344,47 @@ export type Database = {
             referencedRelation: "source_systems"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "webhook_logs_source_system_id_fkey"
+            columns: ["source_system_id"]
+            isOneToOne: false
+            referencedRelation: "source_systems_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      source_systems_safe: {
+        Row: {
+          active: boolean | null
+          code: string | null
+          created_at: string | null
+          id: string | null
+          name: string | null
+          notes: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          code?: string | null
+          created_at?: string | null
+          id?: string | null
+          name?: string | null
+          notes?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          code?: string | null
+          created_at?: string | null
+          id?: string | null
+          name?: string | null
+          notes?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_user_role: {
