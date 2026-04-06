@@ -23,7 +23,6 @@ export default function UserManagement() {
         .order("created_at", { ascending: false });
       if (error) throw error;
 
-      // Fetch roles separately
       const { data: roles } = await supabase.from("user_roles").select("*");
       return profiles.map((p) => ({
         ...p,
@@ -34,23 +33,26 @@ export default function UserManagement() {
 
   const createUser = useMutation({
     mutationFn: async () => {
-      // Sign up user via edge function would be ideal, but for now use client
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: fullName } },
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Нэвтрээгүй байна");
+
+      const response = await supabase.functions.invoke("admin-create-user", {
+        body: { email, password, full_name: fullName, role },
       });
-      if (error) throw error;
-      if (!data.user) throw new Error("User not created");
 
-      // Update profile
-      await supabase.from("profiles").update({ full_name: fullName }).eq("user_id", data.user.id);
+      if (response.error) {
+        throw new Error(response.error.message || "Хэрэглэгч үүсгэхэд алдаа гарлаа");
+      }
 
-      // Assign role
-      await supabase.from("user_roles").insert({ user_id: data.user.id, role: role as "main_admin" | "operator" | "driver" });
+      const result = response.data;
+      if (result?.error) {
+        throw new Error(result.error);
+      }
+
+      return result;
     },
     onSuccess: () => {
-      toast.success("Хэрэглэгч үүсгэлээ");
+      toast.success("Хэрэглэгч амжилттай үүсгэлээ");
       setEmail("");
       setPassword("");
       setFullName("");
