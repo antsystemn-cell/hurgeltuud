@@ -125,7 +125,14 @@ export function useUpdateOrderStatus() {
       status: FulfillmentStatus;
       userId: string;
     }) => {
-      const updates: Record<string, unknown> = {
+      const updates: {
+        fulfillment_status: FulfillmentStatus;
+        updated_by_user_id: string;
+        phone_confirmed_at?: string;
+        out_for_delivery_at?: string;
+        delivered_at?: string;
+        cancelled_at?: string;
+      } = {
         fulfillment_status: status,
         updated_by_user_id: userId,
       };
