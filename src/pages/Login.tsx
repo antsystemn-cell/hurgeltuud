@@ -1,12 +1,18 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+function isPhoneNumber(value: string): boolean {
+  const cleaned = value.replace(/[\s\-\(\)]/g, "");
+  return /^\+?\d{8,15}$/.test(cleaned);
+}
+
 export default function Login() {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,10 +23,52 @@ export default function Login() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const { error } = await signIn(email, password);
+
+    let email = identifier.trim();
+
+    if (isPhoneNumber(email)) {
+      // Look up email by phone number
+      const { data, error: lookupError } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .eq("phone", email)
+        .maybeSingle();
+
+      if (lookupError || !data) {
+        setLoading(false);
+        setError("Энэ дугаартай хэрэглэгч олдсонгүй");
+        return;
+      }
+
+      // Get the user's email from auth via a service call isn't possible client-side,
+      // so we use a workaround: store email or use admin lookup.
+      // Actually we can try to get it from user metadata - but we need the email.
+      // Best approach: use edge function to resolve phone -> email
+      const { data: fnData, error: fnError } = await supabase.functions.invoke("resolve-phone-login", {
+        body: { phone: email, password },
+      });
+
+      setLoading(false);
+      if (fnError || fnData?.error) {
+        setError(fnData?.error || fnError?.message || "Нэвтрэх боломжгүй");
+        return;
+      }
+
+      // Sign in with the resolved email
+      const { error: signInErr } = await signIn(fnData.email, password);
+      if (signInErr) {
+        setError(signInErr.message);
+        return;
+      }
+      navigate("/");
+      return;
+    }
+
+    // Regular email login
+    const { error: signInErr } = await signIn(email, password);
     setLoading(false);
-    if (error) {
-      setError(error.message);
+    if (signInErr) {
+      setError(signInErr.message);
     } else {
       navigate("/");
     }
@@ -35,14 +83,15 @@ export default function Login() {
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Имэйл</Label>
+            <Label htmlFor="identifier">Имэйл эсвэл утасны дугаар</Label>
             <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="identifier"
+              type="text"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               required
-              autoComplete="email"
+              autoComplete="username"
+              placeholder="example@mail.com эсвэл 99001122"
             />
           </div>
           <div className="space-y-2">
