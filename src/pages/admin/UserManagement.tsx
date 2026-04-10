@@ -73,7 +73,7 @@ export default function UserManagement() {
   const createUser = useMutation({
     mutationFn: async () => {
       const response = await supabase.functions.invoke("admin-create-user", {
-        body: { email, password, full_name: fullName, role },
+        body: { email, password, full_name: fullName, role, phone: phone || undefined },
       });
       if (response.error) throw new Error(response.error.message);
       if (response.data?.error) throw new Error(response.data.error);
@@ -81,7 +81,7 @@ export default function UserManagement() {
     },
     onSuccess: () => {
       toast.success("Хэрэглэгч амжилттай үүсгэлээ");
-      setEmail(""); setPassword(""); setFullName("");
+      setEmail(""); setPassword(""); setFullName(""); setPhone("");
       qc.invalidateQueries({ queryKey: ["admin-users"] });
     },
     onError: (e) => toast.error(e.message),
@@ -149,6 +149,10 @@ export default function UserManagement() {
           <div className="space-y-1.5">
             <Label>Имэйл</Label>
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Утас</Label>
+            <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="99001122" />
           </div>
           <div className="space-y-1.5">
             <Label>Нууц үг</Label>
