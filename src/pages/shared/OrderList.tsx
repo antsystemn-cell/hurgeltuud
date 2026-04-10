@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Search, Phone, Trash2 } from "lucide-react";
+import { Search, Phone, Trash2, Printer } from "lucide-react";
 
 export default function OrderList() {
   const { user } = useAuth();
@@ -89,15 +89,17 @@ export default function OrderList() {
                    </p>
                    <p className="text-sm text-muted-foreground">{order.district} — {order.address_text}</p>
                    {(order as any).order_items?.length > 0 && (
-                     <div className="text-xs text-muted-foreground mt-1">
-                       {(order as any).order_items.map((item: any, i: number) => (
-                         <span key={item.id}>
-                           {item.product_name_snapshot} ×{item.quantity}
-                           {i < (order as any).order_items.length - 1 && ", "}
-                         </span>
-                       ))}
-                     </div>
-                   )}
+                      <div className="mt-2 space-y-0.5">
+                        {(order as any).order_items.map((item: any) => (
+                          <div key={item.id} className="flex items-center gap-2 text-sm">
+                            <span className="font-medium text-foreground">{item.product_name_snapshot}</span>
+                            <Badge variant="outline" className="text-xs px-1.5 py-0">
+                              {item.quantity} ш
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <Badge variant="secondary" className="text-xs">{FULFILLMENT_LABELS[order.fulfillment_status]}</Badge>
@@ -145,6 +147,39 @@ export default function OrderList() {
                     ))}
                   </SelectContent>
                 </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-xs"
+                  onClick={() => {
+                    const printWindow = window.open("", "_blank");
+                    if (!printWindow) return;
+                    const items = (order as any).order_items || [];
+                    printWindow.document.write(`
+                      <html><head><title>Label</title>
+                      <style>
+                        @page { size: 70mm 80mm; margin: 0; }
+                        body { margin: 0; padding: 4mm; font-family: sans-serif; font-size: 11px; width: 70mm; }
+                        .district { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
+                        .row { margin-bottom: 2px; }
+                        .items { margin: 6px 0; }
+                        .footer { margin-top: 8px; font-size: 9px; text-align: center; border-top: 1px dashed #000; padding-top: 4px; }
+                        .payment-note { font-weight: bold; margin-top: 4px; padding: 2px 4px; border: 1px solid #000; }
+                      </style></head><body>
+                      <div class="district">${order.district || "—"}</div>
+                      <div>${order.address_text || ""}</div>
+                      <div>${order.phone}</div>
+                      <div class="items">${items.map((it: any) => `<div>${it.product_name_snapshot} × ${it.quantity}</div>`).join("")}</div>
+                      ${order.payment_status !== "paid" ? `<div class="payment-note">⚠ ${PAYMENT_LABELS[order.payment_status]}${order.total_amount ? ` — ₮${Number(order.total_amount).toLocaleString()}` : ""}</div>` : ""}
+                      <div class="footer">Баярлалаа! 🙏</div>
+                      </body></html>
+                    `);
+                    printWindow.document.close();
+                    printWindow.print();
+                  }}
+                >
+                  <Printer className="h-4 w-4 mr-1" /> Хэвлэх
+                </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="ghost" size="sm" className="h-9 text-destructive hover:text-destructive">
