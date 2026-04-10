@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import logo from "@/assets/logo.png";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -66,9 +67,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:w-56 flex-col border-r border-border bg-card">
-        <div className="p-4 border-b border-border">
-          <h1 className="text-lg font-semibold text-foreground">Delivery</h1>
-          <p className="text-xs text-muted-foreground mt-0.5 truncate">{user?.email}</p>
+        <div className="p-4 border-b border-border flex items-center gap-3">
+          <img src={logo} alt="ON Shop" className="h-9 w-9" />
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">ON Shop</h1>
+            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+          </div>
         </div>
         <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
           {items.map((item) => (
@@ -98,7 +102,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
       {/* Mobile header */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-card">
-          <h1 className="text-lg font-semibold text-foreground">Delivery</h1>
+          <div className="flex items-center gap-2">
+            <img src={logo} alt="ON Shop" className="h-8 w-8" />
+            <h1 className="text-lg font-semibold text-foreground">ON Shop</h1>
+          </div>
           <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
@@ -108,7 +115,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
         {mobileOpen && (
           <div className="md:hidden absolute inset-0 z-50 bg-background">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <h1 className="text-lg font-semibold text-foreground">Delivery</h1>
+              <div className="flex items-center gap-2">
+                <img src={logo} alt="ON Shop" className="h-8 w-8" />
+                <h1 className="text-lg font-semibold text-foreground">ON Shop</h1>
+              </div>
               <Button variant="ghost" size="icon" onClick={() => setMobileOpen(false)}>
                 <X className="h-5 w-5" />
               </Button>

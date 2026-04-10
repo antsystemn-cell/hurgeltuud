@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import logo from "@/assets/logo.png";
 
 function isPhoneNumber(value: string): boolean {
   const cleaned = value.replace(/[\s\-\(\)]/g, "");
@@ -67,8 +68,9 @@ export default function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold text-foreground">Delivery Platform</h1>
+        <div className="text-center flex flex-col items-center">
+          <img src={logo} alt="ON Shop" className="h-20 w-20 mb-3" />
+          <h1 className="text-2xl font-semibold text-foreground">ON Shop Delivery</h1>
           <p className="text-sm text-muted-foreground mt-1">Нэвтрэх</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
