@@ -27,23 +27,6 @@ export default function Login() {
     let email = identifier.trim();
 
     if (isPhoneNumber(email)) {
-      // Look up email by phone number
-      const { data, error: lookupError } = await supabase
-        .from("profiles")
-        .select("user_id")
-        .eq("phone", email)
-        .maybeSingle();
-
-      if (lookupError || !data) {
-        setLoading(false);
-        setError("Энэ дугаартай хэрэглэгч олдсонгүй");
-        return;
-      }
-
-      // Get the user's email from auth via a service call isn't possible client-side,
-      // so we use a workaround: store email or use admin lookup.
-      // Actually we can try to get it from user metadata - but we need the email.
-      // Best approach: use edge function to resolve phone -> email
       const { data: fnData, error: fnError } = await supabase.functions.invoke("resolve-phone-login", {
         body: { phone: email, password },
       });
@@ -54,7 +37,14 @@ export default function Login() {
         return;
       }
 
-      // Sign in with the resolved email
+      if (fnData?.session) {
+        // Session returned directly from edge function, set it
+        await supabase.auth.setSession(fnData.session);
+        navigate("/");
+        return;
+      }
+
+      // Fallback: sign in with resolved email
       const { error: signInErr } = await signIn(fnData.email, password);
       if (signInErr) {
         setError(signInErr.message);

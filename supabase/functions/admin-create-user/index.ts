@@ -11,7 +11,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify the caller is an authenticated admin
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Missing authorization" }), {
@@ -24,7 +23,6 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Verify caller is admin using their JWT
     const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -36,7 +34,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check admin role
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
     const { data: isAdmin } = await adminClient.rpc("has_role", {
       _user_id: caller.id,
@@ -51,19 +48,28 @@ Deno.serve(async (req) => {
 
     const { email, password, full_name, role, phone } = await req.json();
 
-    if (!email || !password || !role) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+    if (!password || !role) {
+      return new Response(JSON.stringify({ error: "Нууц үг болон эрх шаардлагатай" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Create user with admin API (does NOT affect caller's session)
+    if (!email && !phone) {
+      return new Response(JSON.stringify({ error: "Имэйл эсвэл утасны дугаар аль нэгийг оруулна уу" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // If no email provided, generate a placeholder from phone number
+    const actualEmail = email || `${phone.replace(/[^0-9]/g, "")}@phone.internal`;
+
     const { data: newUserData, error: createError } = await adminClient.auth.admin.createUser({
-      email,
+      email: actualEmail,
       password,
       email_confirm: true,
-      user_metadata: { full_name: full_name || "" },
+      user_metadata: { full_name: full_name || "", phone_only: !email },
     });
 
     if (createError) {
@@ -75,13 +81,11 @@ Deno.serve(async (req) => {
 
     const newUserId = newUserData.user.id;
 
-    // Update profile name and phone
     await adminClient
       .from("profiles")
       .update({ full_name: full_name || "", phone: phone || null })
       .eq("user_id", newUserId);
 
-    // Assign role
     const { error: roleError } = await adminClient
       .from("user_roles")
       .insert({ user_id: newUserId, role });

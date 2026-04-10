@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { phone } = await req.json();
+    const { phone, password } = await req.json();
 
     if (!phone) {
       return new Response(JSON.stringify({ error: "Утасны дугаар шаардлагатай" }), {
@@ -22,6 +22,7 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
     // Look up profile by phone
@@ -48,8 +49,34 @@ Deno.serve(async (req) => {
       });
     }
 
+    const email = userData.user.email;
+
+    // If password provided, sign in directly and return session
+    if (password) {
+      const signInClient = createClient(supabaseUrl, anonKey);
+      const { data: signInData, error: signInError } = await signInClient.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        return new Response(JSON.stringify({ error: "Нууц үг буруу байна" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          session: signInData.session,
+          email,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
-      JSON.stringify({ email: userData.user.email }),
+      JSON.stringify({ email }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
