@@ -170,7 +170,7 @@ export default function UserManagement() {
             </Select>
           </div>
         </div>
-        <Button onClick={() => createUser.mutate()} disabled={createUser.isPending || !email || !password}>
+        <Button onClick={() => createUser.mutate()} disabled={createUser.isPending || (!email && !phone) || !password}>
           Үүсгэх
         </Button>
       </div>
