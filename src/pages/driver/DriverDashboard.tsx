@@ -28,7 +28,12 @@ export default function DriverDashboard() {
   const [filter, setFilter] = useState<string>("active");
   const { data: orders, isLoading } = useDriverOrders(user?.id || "", filter);
   const updateStatus = useUpdateOrderStatus();
+  const updatePayment = useUpdatePaymentStatus();
 
+  const handleMarkPaid = (orderId: string) => {
+    if (!user) return;
+    updatePayment.mutate({ orderId, status: "paid", userId: user.id });
+  };
   const handleMarkDelivered = (orderId: string) => {
     if (!user) return;
     updateStatus.mutate({ orderId, status: "delivered", userId: user.id });
