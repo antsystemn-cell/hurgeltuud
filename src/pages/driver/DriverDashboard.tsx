@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { useDriverOrders, useUpdateOrderStatus, FULFILLMENT_LABELS, PAYMENT_LABELS } from "@/hooks/useOrders";
+import { useDriverOrders, useUpdateOrderStatus, useUpdatePaymentStatus, FULFILLMENT_LABELS, PAYMENT_LABELS } from "@/hooks/useOrders";
 import { Badge } from "@/components/ui/badge";
-import { Phone, MapPin, CheckCircle2, XCircle } from "lucide-react";
+import { Phone, MapPin, CheckCircle2, XCircle, Banknote } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
