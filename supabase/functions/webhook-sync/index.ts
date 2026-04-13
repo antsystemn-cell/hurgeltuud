@@ -183,7 +183,7 @@ serve(async (req) => {
       });
     }
 
-    if (!sourceSystem?.webhook_url && !isShopOrder) {
+    if (!sourceSystem?.webhook_url && !isShopOrder && !isEasyOrder) {
       return new Response(JSON.stringify({ message: "No webhook configured" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
