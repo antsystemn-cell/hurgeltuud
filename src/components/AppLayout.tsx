@@ -18,6 +18,7 @@ import {
   Globe,
   ClipboardList,
   Home,
+  Smartphone,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -47,6 +48,7 @@ const navByRole: Record<string, NavItem[]> = {
     { label: "Тайлан", path: "/admin/reports", icon: <BarChart3 className="h-5 w-5" /> },
     { label: "Хэвлэх", path: "/admin/print", icon: <Printer className="h-5 w-5" /> },
     { label: "Тохиргоо", path: "/admin/settings", icon: <Settings className="h-5 w-5" /> },
+    { label: "PWA тохиргоо", path: "/admin/pwa", icon: <Smartphone className="h-5 w-5" /> },
   ],
 };
 
