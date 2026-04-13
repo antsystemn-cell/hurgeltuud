@@ -19,6 +19,7 @@ import UserManagement from "./pages/admin/UserManagement";
 import SourceSystems from "./pages/admin/SourceSystems";
 import Reports from "./pages/admin/Reports";
 import PwaSettings from "./pages/admin/PwaSettings";
+import WalletManagement from "./pages/admin/WalletManagement";
 import NotFound from "./pages/NotFound";
 import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
 
