@@ -46,7 +46,6 @@ function EditableAddress({ order, userId }: { order: any; userId: string }) {
       </div>
     );
   }
-  }
 
   return (
     <div className="space-y-1.5">
