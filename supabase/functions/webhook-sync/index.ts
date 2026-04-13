@@ -95,6 +95,48 @@ serve(async (req) => {
       });
     }
 
+    // If it's an EASY- order, send to the Easyshop webhook endpoint
+    if (isEasyOrder && sourceSystem?.api_key) {
+      let easySuccess = false;
+      let easyStatus = 0;
+      let easyBody = "";
+
+      try {
+        const res = await fetch(EASY_WEBHOOK_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": sourceSystem.api_key,
+          },
+          body: JSON.stringify({
+            external_order_id: order.external_order_id,
+            fulfillment_status: order.fulfillment_status,
+            payment_status: order.payment_status,
+            note: order.delivery_note || undefined,
+          }),
+        });
+        easyStatus = res.status;
+        easyBody = await res.text();
+        easySuccess = res.ok;
+      } catch (err) {
+        easyBody = err instanceof Error ? err.message : "Fetch failed";
+      }
+
+      await supabase.from("webhook_logs").insert({
+        source_system_id: sourceSystem.id,
+        order_id: order.id,
+        event_type: "easy_status_sync",
+        payload: {
+          external_order_id: order.external_order_id,
+          fulfillment_status: order.fulfillment_status,
+          payment_status: order.payment_status,
+        },
+        response_status: easyStatus,
+        response_body: easyBody,
+        success: easySuccess,
+        attempt_count: 1,
+      });
+
     // Also send to source system's own webhook_url if configured
     if (sourceSystem?.webhook_url) {
       const payload = {
