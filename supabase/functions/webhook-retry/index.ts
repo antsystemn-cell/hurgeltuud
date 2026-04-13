@@ -53,8 +53,9 @@ serve(async (req) => {
       let headers: Record<string, string> = { "Content-Type": "application/json" };
       let payload: Record<string, unknown> = {};
 
-      if (log.event_type === "shop_status_sync" && isShopOrder && sourceSystem?.api_key) {
-        targetUrl = SHOP_WEBHOOK_URL;
+      if ((log.event_type === "shop_status_sync" && isShopOrder && sourceSystem?.api_key) ||
+          (log.event_type === "easy_status_sync" && isEasyOrder && sourceSystem?.api_key)) {
+        targetUrl = isEasyOrder ? EASY_WEBHOOK_URL : SHOP_WEBHOOK_URL;
         headers["x-api-key"] = sourceSystem.api_key;
         payload = {
           external_order_id: order.external_order_id,
