@@ -141,6 +141,16 @@ export default function Login() {
             {loading ? "Нэвтэрч байна..." : "Нэвтрэх"}
           </Button>
         </form>
+
+        {showPwaButton && (
+          <button
+            onClick={handleInstall}
+            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-border bg-card text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          >
+            <Download className="h-4 w-4" />
+            <span>Апп суулгах</span>
+          </button>
+        )}
       </div>
     </div>
   );
