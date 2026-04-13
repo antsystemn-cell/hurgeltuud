@@ -216,10 +216,23 @@ export function useDeleteOrder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (orderId: string) => {
-      // Delete items first, then order
       const { error: itemsErr } = await supabase.from("order_items").delete().eq("order_id", orderId);
       if (itemsErr) throw itemsErr;
       const { error } = await supabase.from("orders").delete().eq("id", orderId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
+  });
+}
+
+export function useUpdateOrderAddress() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ orderId, district, addressText, userId }: { orderId: string; district: string; addressText: string; userId: string }) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ district, address_text: addressText, updated_by_user_id: userId })
+        .eq("id", orderId);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
