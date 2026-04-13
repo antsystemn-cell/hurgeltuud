@@ -19,6 +19,7 @@ import {
   ClipboardList,
   Home,
   Smartphone,
+  Wallet,
 } from "lucide-react";
 import { useState } from "react";
 
