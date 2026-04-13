@@ -43,15 +43,6 @@ function EditableAddress({ order, userId }: { order: any; userId: string }) {
         >
           <Pencil className="h-3 w-3 text-muted-foreground" />
         </button>
-      </div>
-        <button
-          onClick={() => setEditing(true)}
-          className="opacity-0 group-hover:opacity-100 md:transition-opacity p-0.5 rounded hover:bg-muted flex-shrink-0 mt-0.5"
-          title="Хаяг засах"
-        >
-          <Pencil className="h-3 w-3 text-muted-foreground" />
-        </button>
-      </div>
     );
   }
 
