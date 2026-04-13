@@ -151,8 +151,9 @@ export default function OrderList() {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-1 min-w-0 flex-1">
+                    {/* Top row: name + badges */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
                         <p className="font-medium text-foreground">{order.customer_name}</p>
                         <div className="flex items-center gap-2">
                           <a href={`tel:${order.phone}`} className="text-primary font-medium text-sm flex items-center gap-1">
@@ -164,19 +165,6 @@ export default function OrderList() {
                           {order.internal_order_number}
                           {order.source_systems && ` • ${(order.source_systems as { name: string }).name}`}
                         </p>
-                        {user && <EditableAddress order={order} userId={user.id} />}
-                        {(order as any).order_items?.length > 0 && (
-                          <div className="mt-2 space-y-0.5">
-                            {(order as any).order_items.map((item: any) => (
-                              <div key={item.id} className="flex items-center gap-2 text-sm">
-                                <span className="font-medium text-foreground">{item.product_name_snapshot}</span>
-                                <Badge variant="outline" className="text-xs px-1.5 py-0">
-                                  {item.quantity} ш
-                                </Badge>
-                              </div>
-                            ))}
-                          </div>
-                        )}
                       </div>
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
                         <Badge variant="secondary" className="text-xs whitespace-nowrap">{FULFILLMENT_LABELS[order.fulfillment_status]}</Badge>
@@ -188,6 +176,21 @@ export default function OrderList() {
                         )}
                       </div>
                     </div>
+                    {/* Address - full width */}
+                    {user && <div className="mt-1">{<EditableAddress order={order} userId={user.id} />}</div>}
+                    {/* Items - full width */}
+                    {(order as any).order_items?.length > 0 && (
+                      <div className="mt-2 space-y-0.5">
+                        {(order as any).order_items.map((item: any) => (
+                          <div key={item.id} className="flex items-center gap-2 text-sm">
+                            <span className="font-medium text-foreground">{item.product_name_snapshot}</span>
+                            <Badge variant="outline" className="text-xs px-1.5 py-0">
+                              {item.quantity} ш
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border/50">
                       <Select
                         value={order.fulfillment_status}
