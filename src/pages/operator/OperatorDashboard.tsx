@@ -125,7 +125,7 @@ export default function OperatorDashboard() {
                           {order.internal_order_number}
                           {order.source_systems && ` • ${(order.source_systems as { name: string }).name}`}
                         </p>
-                        <p className="text-sm text-muted-foreground line-clamp-2">{[order.district, order.address_text].filter(Boolean).join(" — ")}</p>
+                        <p className="text-sm text-muted-foreground break-words">{[order.district, order.address_text].filter(Boolean).join(" — ")}</p>
                         {order.order_items?.map((item: { id: string; product_name_snapshot: string; quantity: number }) => (
                           <div key={item.id} className="flex items-center gap-2 text-sm">
                             <span className="font-medium text-foreground">{item.product_name_snapshot}</span>
