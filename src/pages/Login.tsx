@@ -27,6 +27,38 @@ export default function Login() {
   const { signIn } = useAuth();
   const navigate = useNavigate();
 
+  // PWA install prompt
+  const { data: pwaSettings } = usePwaSettings();
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setIsInstalled(true);
+    }
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+    const installedHandler = () => setIsInstalled(true);
+    window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", installedHandler);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", installedHandler);
+    };
+  }, []);
+
+  const handleInstall = useCallback(async () => {
+    if (!deferredPrompt) return;
+    await deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") setIsInstalled(true);
+    setDeferredPrompt(null);
+  }, [deferredPrompt]);
+
+  const showPwaButton = pwaSettings?.enabled && deferredPrompt && !isInstalled;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
