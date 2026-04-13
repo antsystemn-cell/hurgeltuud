@@ -12,7 +12,6 @@ import { STATUS_BORDER_COLORS, STATUS_BG_COLORS, formatOrderDate } from "@/lib/o
 
 function EditableAddress({ order, userId }: { order: any; userId: string }) {
   const [editing, setEditing] = useState(false);
-  const [expanded, setExpanded] = useState(false);
   const [district, setDistrict] = useState(order.district || "");
   const [address, setAddress] = useState(order.address_text || "");
   const updateAddress = useUpdateOrderAddress();
@@ -34,11 +33,7 @@ function EditableAddress({ order, userId }: { order: any; userId: string }) {
     const fullAddress = [order.district, order.address_text].filter(Boolean).join(" — ");
     return (
       <div className="flex items-start gap-1 group">
-        <p
-          className={`text-sm text-muted-foreground cursor-pointer ${expanded ? "" : "line-clamp-2"}`}
-          onClick={() => setExpanded(!expanded)}
-          title={expanded ? "Хураах" : "Дэлгэрэнгүй"}
-        >
+        <p className="text-sm text-muted-foreground break-words">
           {fullAddress || "—"}
         </p>
         <button
@@ -50,6 +45,7 @@ function EditableAddress({ order, userId }: { order: any; userId: string }) {
         </button>
       </div>
     );
+  }
   }
 
   return (
