@@ -225,6 +225,36 @@ export type Database = {
         }
         Relationships: []
       }
+      pwa_settings: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          prompt_frequency_hours: number
+          prompt_message: string
+          prompt_title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          prompt_frequency_hours?: number
+          prompt_message?: string
+          prompt_title?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          prompt_frequency_hours?: number
+          prompt_message?: string
+          prompt_title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       source_systems: {
         Row: {
           active: boolean

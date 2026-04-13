@@ -17,7 +17,9 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import UserManagement from "./pages/admin/UserManagement";
 import SourceSystems from "./pages/admin/SourceSystems";
 import Reports from "./pages/admin/Reports";
+import PwaSettings from "./pages/admin/PwaSettings";
 import NotFound from "./pages/NotFound";
+import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +51,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <PwaInstallPrompt />
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -73,6 +76,7 @@ const App = () => (
             <Route path="/admin/reports" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><Reports /></LayoutWrap></RequireAuth>} />
             <Route path="/admin/print" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><LabelPrint /></LayoutWrap></RequireAuth>} />
             <Route path="/admin/settings" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><SourceSystems /></LayoutWrap></RequireAuth>} />
+            <Route path="/admin/pwa" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><PwaSettings /></LayoutWrap></RequireAuth>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
