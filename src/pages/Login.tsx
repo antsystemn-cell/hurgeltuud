@@ -1,11 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Download } from "lucide-react";
+import { usePwaSettings } from "@/hooks/usePwaSettings";
 import logo from "@/assets/logo.png";
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
 
 function isPhoneNumber(value: string): boolean {
   const cleaned = value.replace(/[\s\-\(\)]/g, "");
@@ -19,6 +26,38 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
+
+  // PWA install prompt
+  const { data: pwaSettings } = usePwaSettings();
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setIsInstalled(true);
+    }
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+    const installedHandler = () => setIsInstalled(true);
+    window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", installedHandler);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", installedHandler);
+    };
+  }, []);
+
+  const handleInstall = useCallback(async () => {
+    if (!deferredPrompt) return;
+    await deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") setIsInstalled(true);
+    setDeferredPrompt(null);
+  }, [deferredPrompt]);
+
+  const showPwaButton = pwaSettings?.enabled && deferredPrompt && !isInstalled;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,6 +141,16 @@ export default function Login() {
             {loading ? "Нэвтэрч байна..." : "Нэвтрэх"}
           </Button>
         </form>
+
+        {showPwaButton && (
+          <button
+            onClick={handleInstall}
+            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-border bg-card text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          >
+            <Download className="h-4 w-4" />
+            <span>Апп суулгах</span>
+          </button>
+        )}
       </div>
     </div>
   );
