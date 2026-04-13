@@ -61,6 +61,7 @@ const App = () => (
 
             {/* Driver */}
             <Route path="/driver" element={<RequireAuth allowedRoles={["driver"]}><LayoutWrap><DriverDashboard /></LayoutWrap></RequireAuth>} />
+            <Route path="/driver/wallet" element={<RequireAuth allowedRoles={["driver"]}><LayoutWrap><DriverWallet /></LayoutWrap></RequireAuth>} />
 
             {/* Operator */}
             <Route path="/operator" element={<RequireAuth allowedRoles={["operator"]}><LayoutWrap><OperatorDashboard /></LayoutWrap></RequireAuth>} />
@@ -79,6 +80,7 @@ const App = () => (
             <Route path="/admin/print" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><LabelPrint /></LayoutWrap></RequireAuth>} />
             <Route path="/admin/settings" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><SourceSystems /></LayoutWrap></RequireAuth>} />
             <Route path="/admin/pwa" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><PwaSettings /></LayoutWrap></RequireAuth>} />
+            <Route path="/admin/wallet" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><WalletManagement /></LayoutWrap></RequireAuth>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
