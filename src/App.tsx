@@ -9,6 +9,7 @@ import { ReactNode } from "react";
 
 import Login from "./pages/Login";
 import DriverDashboard from "./pages/driver/DriverDashboard";
+import DriverWallet from "./pages/driver/DriverWallet";
 import OperatorDashboard from "./pages/operator/OperatorDashboard";
 import OrderList from "./pages/shared/OrderList";
 import CreateOrder from "./pages/shared/CreateOrder";
