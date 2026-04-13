@@ -113,8 +113,8 @@ export default function OperatorDashboard() {
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="space-y-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1 min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <p className="font-medium text-foreground">{order.customer_name}</p>
                           <a href={`tel:${order.phone}`} className="text-primary">
@@ -136,9 +136,9 @@ export default function OperatorDashboard() {
                         ))}
                       </div>
 
-                      <div className="flex flex-col items-end gap-2">
+                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
                         <div className="flex gap-1">
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-xs whitespace-nowrap">
                             {FULFILLMENT_LABELS[order.fulfillment_status]}
                           </Badge>
                           <Badge
