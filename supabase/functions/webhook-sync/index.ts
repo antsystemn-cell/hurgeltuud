@@ -136,6 +136,7 @@ serve(async (req) => {
         success: easySuccess,
         attempt_count: 1,
       });
+    }
 
     // Also send to source system's own webhook_url if configured
     if (sourceSystem?.webhook_url) {
