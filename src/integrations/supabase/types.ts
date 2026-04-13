@@ -44,6 +44,36 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_wallets: {
+        Row: {
+          balance: number
+          created_at: string
+          driver_user_id: string
+          id: string
+          total_earned: number
+          total_withdrawn: number
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          driver_user_id: string
+          id?: string
+          total_earned?: number
+          total_withdrawn?: number
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          driver_user_id?: string
+          id?: string
+          total_earned?: number
+          total_withdrawn?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string
@@ -312,6 +342,81 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_settings: {
+        Row: {
+          created_at: string
+          delivery_fee_per_order: number
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          delivery_fee_per_order?: number
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          delivery_fee_per_order?: number
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          created_at: string
+          created_by_user_id: string | null
+          description: string | null
+          driver_user_id: string
+          id: string
+          order_id: string | null
+          type: Database["public"]["Enums"]["wallet_tx_type"]
+          wallet_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after?: number
+          created_at?: string
+          created_by_user_id?: string | null
+          description?: string | null
+          driver_user_id: string
+          id?: string
+          order_id?: string | null
+          type: Database["public"]["Enums"]["wallet_tx_type"]
+          wallet_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          created_at?: string
+          created_by_user_id?: string | null
+          description?: string | null
+          driver_user_id?: string
+          id?: string
+          order_id?: string | null
+          type?: Database["public"]["Enums"]["wallet_tx_type"]
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_transactions_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "driver_wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       webhook_logs: {
         Row: {
           attempt_count: number | null
@@ -369,6 +474,56 @@ export type Database = {
           },
         ]
       }
+      withdrawal_requests: {
+        Row: {
+          amount: number
+          bank_account: string | null
+          bank_name: string | null
+          created_at: string
+          driver_user_id: string
+          id: string
+          note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["withdrawal_status"]
+          wallet_id: string
+        }
+        Insert: {
+          amount: number
+          bank_account?: string | null
+          bank_name?: string | null
+          created_at?: string
+          driver_user_id: string
+          id?: string
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["withdrawal_status"]
+          wallet_id: string
+        }
+        Update: {
+          amount?: number
+          bank_account?: string | null
+          bank_name?: string | null
+          created_at?: string
+          driver_user_id?: string
+          id?: string
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["withdrawal_status"]
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "withdrawal_requests_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "driver_wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -407,6 +562,13 @@ export type Database = {
         | "delivered"
         | "cancelled"
       payment_status: "unpaid" | "cash_on_delivery" | "paid" | "refunded"
+      wallet_tx_type:
+        | "delivery_earning"
+        | "withdrawal"
+        | "adjustment_add"
+        | "adjustment_subtract"
+        | "bank_transfer"
+      withdrawal_status: "pending" | "approved" | "rejected" | "completed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -543,6 +705,14 @@ export const Constants = {
         "cancelled",
       ],
       payment_status: ["unpaid", "cash_on_delivery", "paid", "refunded"],
+      wallet_tx_type: [
+        "delivery_earning",
+        "withdrawal",
+        "adjustment_add",
+        "adjustment_subtract",
+        "bank_transfer",
+      ],
+      withdrawal_status: ["pending", "approved", "rejected", "completed"],
     },
   },
 } as const
