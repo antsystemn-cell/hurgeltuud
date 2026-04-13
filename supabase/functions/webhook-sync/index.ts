@@ -47,7 +47,9 @@ serve(async (req) => {
 
     // Determine webhook target
     const isShopOrder = order.external_order_id?.startsWith("SHOP-");
+    const isEasyOrder = order.external_order_id?.startsWith("EASY-");
     const SHOP_WEBHOOK_URL = "https://oaqegsepcakxtspufyje.supabase.co/functions/v1/delivery-status-webhook";
+    const EASY_WEBHOOK_URL = "https://jiqjebbxcwetakdhfuel.supabase.co/functions/v1/delivery-status-webhook";
 
     // If it's a SHOP- order, send to the shop webhook endpoint
     if (isShopOrder && sourceSystem?.api_key) {
