@@ -1,13 +1,74 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { useOrders, useDrivers, useSourceSystems, useUpdateOrderStatus, useAssignDriver, useUpdatePaymentStatus, useDeleteOrder, FULFILLMENT_LABELS, PAYMENT_LABELS, type FulfillmentStatus, type PaymentStatus } from "@/hooks/useOrders";
+import { useOrders, useDrivers, useSourceSystems, useUpdateOrderStatus, useAssignDriver, useUpdatePaymentStatus, useDeleteOrder, useUpdateOrderAddress, FULFILLMENT_LABELS, PAYMENT_LABELS, type FulfillmentStatus, type PaymentStatus } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Search, Phone, Trash2, Printer } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Search, Phone, Trash2, Printer, Pencil, Check, X } from "lucide-react";
 import { STATUS_BORDER_COLORS, STATUS_BG_COLORS, formatOrderDate } from "@/lib/orderHelpers";
+
+function EditableAddress({ order, userId }: { order: any; userId: string }) {
+  const [editing, setEditing] = useState(false);
+  const [district, setDistrict] = useState(order.district || "");
+  const [address, setAddress] = useState(order.address_text || "");
+  const updateAddress = useUpdateOrderAddress();
+
+  const handleSave = () => {
+    updateAddress.mutate(
+      { orderId: order.id, district, addressText: address, userId },
+      { onSuccess: () => setEditing(false) }
+    );
+  };
+
+  const handleCancel = () => {
+    setDistrict(order.district || "");
+    setAddress(order.address_text || "");
+    setEditing(false);
+  };
+
+  if (!editing) {
+    return (
+      <div className="flex items-start gap-1 group">
+        <p className="text-sm text-muted-foreground">{order.district} — {order.address_text}</p>
+        <button
+          onClick={() => setEditing(true)}
+          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted flex-shrink-0"
+          title="Хаяг засах"
+        >
+          <Pencil className="h-3 w-3 text-muted-foreground" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <Input
+        value={district}
+        onChange={(e) => setDistrict(e.target.value)}
+        placeholder="Дүүрэг"
+        className="h-8 text-sm"
+      />
+      <Textarea
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+        placeholder="Хаяг"
+        className="text-sm min-h-[60px]"
+      />
+      <div className="flex gap-1">
+        <Button size="sm" className="h-7 text-xs px-2" onClick={handleSave} disabled={updateAddress.isPending}>
+          <Check className="h-3 w-3 mr-1" /> Хадгалах
+        </Button>
+        <Button size="sm" variant="ghost" className="h-7 text-xs px-2" onClick={handleCancel}>
+          <X className="h-3 w-3 mr-1" /> Болих
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default function OrderList() {
   const { user } = useAuth();
@@ -80,14 +141,12 @@ export default function OrderList() {
             return (
               <div key={order.id} className={`border border-border rounded-xl p-4 border-l-4 ${borderColor} ${bgColor}`}>
                 <div className="flex items-start gap-3">
-                  {/* Date column */}
                   <div className="flex-shrink-0 w-14 text-center">
                     <p className="text-2xl font-bold text-foreground leading-none">{date.day}</p>
                     <p className="text-[10px] text-muted-foreground">{date.month}</p>
                     <p className="text-xs text-muted-foreground font-medium">{date.time}</p>
                   </div>
 
-                  {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-1 min-w-0 flex-1">
@@ -102,7 +161,7 @@ export default function OrderList() {
                           {order.internal_order_number}
                           {order.source_systems && ` • ${(order.source_systems as { name: string }).name}`}
                         </p>
-                        <p className="text-sm text-muted-foreground">{order.district} — {order.address_text}</p>
+                        {user && <EditableAddress order={order} userId={user.id} />}
                         {(order as any).order_items?.length > 0 && (
                           <div className="mt-2 space-y-0.5">
                             {(order as any).order_items.map((item: any) => (
