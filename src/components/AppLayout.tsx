@@ -19,6 +19,7 @@ import {
   ClipboardList,
   Home,
   Smartphone,
+  Wallet,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -31,6 +32,7 @@ interface NavItem {
 const navByRole: Record<string, NavItem[]> = {
   driver: [
     { label: "Миний хүргэлтүүд", path: "/driver", icon: <Truck className="h-5 w-5" /> },
+    { label: "Хэтэвч", path: "/driver/wallet", icon: <Wallet className="h-5 w-5" /> },
   ],
   operator: [
     { label: "Идэвхтэй", path: "/operator", icon: <ClipboardList className="h-5 w-5" /> },
@@ -49,6 +51,7 @@ const navByRole: Record<string, NavItem[]> = {
     { label: "Хэвлэх", path: "/admin/print", icon: <Printer className="h-5 w-5" /> },
     { label: "Тохиргоо", path: "/admin/settings", icon: <Settings className="h-5 w-5" /> },
     { label: "PWA тохиргоо", path: "/admin/pwa", icon: <Smartphone className="h-5 w-5" /> },
+    { label: "Хэтэвч удирдлага", path: "/admin/wallet", icon: <Wallet className="h-5 w-5" /> },
   ],
 };
 

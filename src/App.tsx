@@ -9,6 +9,7 @@ import { ReactNode } from "react";
 
 import Login from "./pages/Login";
 import DriverDashboard from "./pages/driver/DriverDashboard";
+import DriverWallet from "./pages/driver/DriverWallet";
 import OperatorDashboard from "./pages/operator/OperatorDashboard";
 import OrderList from "./pages/shared/OrderList";
 import CreateOrder from "./pages/shared/CreateOrder";
@@ -18,6 +19,7 @@ import UserManagement from "./pages/admin/UserManagement";
 import SourceSystems from "./pages/admin/SourceSystems";
 import Reports from "./pages/admin/Reports";
 import PwaSettings from "./pages/admin/PwaSettings";
+import WalletManagement from "./pages/admin/WalletManagement";
 import NotFound from "./pages/NotFound";
 import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
 
@@ -59,6 +61,7 @@ const App = () => (
 
             {/* Driver */}
             <Route path="/driver" element={<RequireAuth allowedRoles={["driver"]}><LayoutWrap><DriverDashboard /></LayoutWrap></RequireAuth>} />
+            <Route path="/driver/wallet" element={<RequireAuth allowedRoles={["driver"]}><LayoutWrap><DriverWallet /></LayoutWrap></RequireAuth>} />
 
             {/* Operator */}
             <Route path="/operator" element={<RequireAuth allowedRoles={["operator"]}><LayoutWrap><OperatorDashboard /></LayoutWrap></RequireAuth>} />
@@ -77,6 +80,7 @@ const App = () => (
             <Route path="/admin/print" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><LabelPrint /></LayoutWrap></RequireAuth>} />
             <Route path="/admin/settings" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><SourceSystems /></LayoutWrap></RequireAuth>} />
             <Route path="/admin/pwa" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><PwaSettings /></LayoutWrap></RequireAuth>} />
+            <Route path="/admin/wallet" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><WalletManagement /></LayoutWrap></RequireAuth>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
