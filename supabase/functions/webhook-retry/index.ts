@@ -37,6 +37,7 @@ serve(async (req) => {
     }
 
     const SHOP_WEBHOOK_URL = "https://oaqegsepcakxtspufyje.supabase.co/functions/v1/delivery-status-webhook";
+    const EASY_WEBHOOK_URL = "https://jiqjebbxcwetakdhfuel.supabase.co/functions/v1/delivery-status-webhook";
     let retriedCount = 0;
     let successCount = 0;
 
@@ -46,13 +47,15 @@ serve(async (req) => {
 
       const sourceSystem = order.source_systems as any;
       const isShopOrder = order.external_order_id?.startsWith("SHOP-");
+      const isEasyOrder = order.external_order_id?.startsWith("EASY-");
 
       let targetUrl: string | null = null;
       let headers: Record<string, string> = { "Content-Type": "application/json" };
       let payload: Record<string, unknown> = {};
 
-      if (log.event_type === "shop_status_sync" && isShopOrder && sourceSystem?.api_key) {
-        targetUrl = SHOP_WEBHOOK_URL;
+      if ((log.event_type === "shop_status_sync" && isShopOrder && sourceSystem?.api_key) ||
+          (log.event_type === "easy_status_sync" && isEasyOrder && sourceSystem?.api_key)) {
+        targetUrl = isEasyOrder ? EASY_WEBHOOK_URL : SHOP_WEBHOOK_URL;
         headers["x-api-key"] = sourceSystem.api_key;
         payload = {
           external_order_id: order.external_order_id,
