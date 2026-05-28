@@ -139,6 +139,7 @@ export type Database = {
           idempotency_key: string | null
           internal_note: string | null
           internal_order_number: string
+          last_sync_at: string | null
           out_for_delivery_at: string | null
           payment_method: string | null
           payment_status: Database["public"]["Enums"]["payment_status"]
@@ -147,6 +148,8 @@ export type Database = {
           source_channel: string | null
           source_system_id: string | null
           subtotal: number | null
+          sync_attempts: number
+          sync_error: string | null
           total_amount: number | null
           updated_at: string
           updated_by_user_id: string | null
@@ -171,6 +174,7 @@ export type Database = {
           idempotency_key?: string | null
           internal_note?: string | null
           internal_order_number: string
+          last_sync_at?: string | null
           out_for_delivery_at?: string | null
           payment_method?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
@@ -179,6 +183,8 @@ export type Database = {
           source_channel?: string | null
           source_system_id?: string | null
           subtotal?: number | null
+          sync_attempts?: number
+          sync_error?: string | null
           total_amount?: number | null
           updated_at?: string
           updated_by_user_id?: string | null
@@ -203,6 +209,7 @@ export type Database = {
           idempotency_key?: string | null
           internal_note?: string | null
           internal_order_number?: string
+          last_sync_at?: string | null
           out_for_delivery_at?: string | null
           payment_method?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
@@ -211,6 +218,8 @@ export type Database = {
           source_channel?: string | null
           source_system_id?: string | null
           subtotal?: number | null
+          sync_attempts?: number
+          sync_error?: string | null
           total_amount?: number | null
           updated_at?: string
           updated_by_user_id?: string | null
