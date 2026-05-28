@@ -6,6 +6,40 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Map internal fulfillment_status to standardized cross-system status
+function toStandardStatus(internal: string | null | undefined): string {
+  switch (internal) {
+    case "confirmed": return "confirmed";
+    case "phone_confirmed": return "assigned";
+    case "out_for_delivery": return "in_transit";
+    case "delivered": return "delivered";
+    case "cancelled": return "cancelled";
+    default: return "new";
+  }
+}
+
+async function markOrderSynced(
+  supabase: ReturnType<typeof createClient>,
+  orderId: string,
+  success: boolean,
+  errorMsg: string | null,
+) {
+  const patch: Record<string, unknown> = {
+    last_sync_at: new Date().toISOString(),
+    sync_error: success ? null : errorMsg,
+  };
+  if (success) {
+    patch.sync_attempts = 0;
+  }
+  await supabase.from("orders").update(patch).eq("id", orderId);
+  if (!success) {
+    // increment via RPC-less approach: re-read then bump
+    const { data } = await supabase.from("orders").select("sync_attempts").eq("id", orderId).single();
+    const attempts = ((data?.sync_attempts as number) ?? 0) + 1;
+    await supabase.from("orders").update({ sync_attempts: attempts }).eq("id", orderId);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
