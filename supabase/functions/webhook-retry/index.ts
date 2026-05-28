@@ -64,15 +64,21 @@ serve(async (req) => {
       let headers: Record<string, string> = { "Content-Type": "application/json" };
       let payload: Record<string, unknown> = {};
 
+      const standardStatus = toStandardStatus(order.fulfillment_status);
+
       if ((log.event_type === "shop_status_sync" && isShopOrder && sourceSystem?.api_key) ||
           (log.event_type === "easy_status_sync" && isEasyOrder && sourceSystem?.api_key)) {
         targetUrl = isEasyOrder ? EASY_WEBHOOK_URL : SHOP_WEBHOOK_URL;
         headers["x-api-key"] = sourceSystem.api_key;
         payload = {
           external_order_id: order.external_order_id,
+          delivery_order_id: order.id,
+          tracking_code: order.internal_order_number,
+          status: standardStatus,
           fulfillment_status: order.fulfillment_status,
           payment_status: order.payment_status,
           note: order.delivery_note || undefined,
+          updated_at: new Date().toISOString(),
         };
       } else if (sourceSystem?.webhook_url) {
         targetUrl = sourceSystem.webhook_url;
@@ -83,9 +89,13 @@ serve(async (req) => {
           event: log.event_type,
           order_id: order.id,
           external_order_id: order.external_order_id,
+          delivery_order_id: order.id,
+          tracking_code: order.internal_order_number,
+          status: standardStatus,
           fulfillment_status: order.fulfillment_status,
           payment_status: order.payment_status,
           timestamp: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         };
       }
 
@@ -120,9 +130,20 @@ serve(async (req) => {
         })
         .eq("id", log.id);
 
+      // Update sync tracking on order
+      await supabase
+        .from("orders")
+        .update({
+          last_sync_at: new Date().toISOString(),
+          sync_error: success ? null : responseBody,
+          ...(success ? { sync_attempts: 0 } : {}),
+        })
+        .eq("id", order.id);
+
       retriedCount++;
       if (success) successCount++;
     }
+
 
     return new Response(JSON.stringify({
       success: true,
