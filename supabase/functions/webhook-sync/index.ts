@@ -6,6 +6,40 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Map internal fulfillment_status to standardized cross-system status
+function toStandardStatus(internal: string | null | undefined): string {
+  switch (internal) {
+    case "confirmed": return "confirmed";
+    case "phone_confirmed": return "assigned";
+    case "out_for_delivery": return "in_transit";
+    case "delivered": return "delivered";
+    case "cancelled": return "cancelled";
+    default: return "new";
+  }
+}
+
+async function markOrderSynced(
+  supabase: ReturnType<typeof createClient>,
+  orderId: string,
+  success: boolean,
+  errorMsg: string | null,
+) {
+  const patch: Record<string, unknown> = {
+    last_sync_at: new Date().toISOString(),
+    sync_error: success ? null : errorMsg,
+  };
+  if (success) {
+    patch.sync_attempts = 0;
+  }
+  await supabase.from("orders").update(patch).eq("id", orderId);
+  if (!success) {
+    // increment via RPC-less approach: re-read then bump
+    const { data } = await supabase.from("orders").select("sync_attempts").eq("id", orderId).single();
+    const attempts = ((data?.sync_attempts as number) ?? 0) + 1;
+    await supabase.from("orders").update({ sync_attempts: attempts }).eq("id", orderId);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -51,11 +85,28 @@ serve(async (req) => {
     const SHOP_WEBHOOK_URL = "https://oaqegsepcakxtspufyje.supabase.co/functions/v1/delivery-status-webhook";
     const EASY_WEBHOOK_URL = "https://jiqjebbxcwetakdhfuel.supabase.co/functions/v1/delivery-status-webhook";
 
+    const standardStatus = toStandardStatus(order.fulfillment_status);
+    let anyAttempt = false;
+    let anySuccess = false;
+    let lastError: string | null = null;
+
     // If it's a SHOP- order, send to the shop webhook endpoint
     if (isShopOrder && sourceSystem?.api_key) {
+      anyAttempt = true;
       let shopSuccess = false;
       let shopStatus = 0;
       let shopBody = "";
+
+      const payload = {
+        external_order_id: order.external_order_id,
+        delivery_order_id: order.id,
+        tracking_code: order.internal_order_number,
+        status: standardStatus,
+        fulfillment_status: order.fulfillment_status,
+        payment_status: order.payment_status,
+        note: order.delivery_note || undefined,
+        updated_at: new Date().toISOString(),
+      };
 
       try {
         const res = await fetch(SHOP_WEBHOOK_URL, {
@@ -64,12 +115,7 @@ serve(async (req) => {
             "Content-Type": "application/json",
             "x-api-key": sourceSystem.api_key,
           },
-          body: JSON.stringify({
-            external_order_id: order.external_order_id,
-            fulfillment_status: order.fulfillment_status,
-            payment_status: order.payment_status,
-            note: order.delivery_note || undefined,
-          }),
+          body: JSON.stringify(payload),
         });
         shopStatus = res.status;
         shopBody = await res.text();
@@ -78,16 +124,14 @@ serve(async (req) => {
         shopBody = err instanceof Error ? err.message : "Fetch failed";
       }
 
-      // Log the attempt
+      if (shopSuccess) anySuccess = true;
+      else lastError = `shop: ${shopStatus} ${shopBody}`;
+
       await supabase.from("webhook_logs").insert({
         source_system_id: sourceSystem.id,
         order_id: order.id,
         event_type: "shop_status_sync",
-        payload: {
-          external_order_id: order.external_order_id,
-          fulfillment_status: order.fulfillment_status,
-          payment_status: order.payment_status,
-        },
+        payload,
         response_status: shopStatus,
         response_body: shopBody,
         success: shopSuccess,
@@ -97,9 +141,21 @@ serve(async (req) => {
 
     // If it's an EASY- order, send to the Easyshop webhook endpoint
     if (isEasyOrder && sourceSystem?.api_key) {
+      anyAttempt = true;
       let easySuccess = false;
       let easyStatus = 0;
       let easyBody = "";
+
+      const payload = {
+        external_order_id: order.external_order_id,
+        delivery_order_id: order.id,
+        tracking_code: order.internal_order_number,
+        status: standardStatus,
+        fulfillment_status: order.fulfillment_status,
+        payment_status: order.payment_status,
+        note: order.delivery_note || undefined,
+        updated_at: new Date().toISOString(),
+      };
 
       try {
         const res = await fetch(EASY_WEBHOOK_URL, {
@@ -108,12 +164,7 @@ serve(async (req) => {
             "Content-Type": "application/json",
             "x-api-key": sourceSystem.api_key,
           },
-          body: JSON.stringify({
-            external_order_id: order.external_order_id,
-            fulfillment_status: order.fulfillment_status,
-            payment_status: order.payment_status,
-            note: order.delivery_note || undefined,
-          }),
+          body: JSON.stringify(payload),
         });
         easyStatus = res.status;
         easyBody = await res.text();
@@ -122,15 +173,14 @@ serve(async (req) => {
         easyBody = err instanceof Error ? err.message : "Fetch failed";
       }
 
+      if (easySuccess) anySuccess = true;
+      else lastError = `easy: ${easyStatus} ${easyBody}`;
+
       await supabase.from("webhook_logs").insert({
         source_system_id: sourceSystem.id,
         order_id: order.id,
         event_type: "easy_status_sync",
-        payload: {
-          external_order_id: order.external_order_id,
-          fulfillment_status: order.fulfillment_status,
-          payment_status: order.payment_status,
-        },
+        payload,
         response_status: easyStatus,
         response_body: easyBody,
         success: easySuccess,
@@ -140,13 +190,18 @@ serve(async (req) => {
 
     // Also send to source system's own webhook_url if configured
     if (sourceSystem?.webhook_url) {
+      anyAttempt = true;
       const payload = {
         event: event_type,
         order_id: order.id,
         external_order_id: order.external_order_id,
+        delivery_order_id: order.id,
+        tracking_code: order.internal_order_number,
+        status: standardStatus,
         fulfillment_status: order.fulfillment_status,
         payment_status: order.payment_status,
         timestamp: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
       let success = false;
@@ -172,6 +227,9 @@ serve(async (req) => {
         responseBody = err instanceof Error ? err.message : "Fetch failed";
       }
 
+      if (success) anySuccess = true;
+      else lastError = `webhook: ${responseStatus} ${responseBody}`;
+
       await supabase.from("webhook_logs").insert({
         source_system_id: sourceSystem.id,
         order_id: order.id,
@@ -183,6 +241,11 @@ serve(async (req) => {
         attempt_count: 1,
       });
     }
+
+    if (anyAttempt) {
+      await markOrderSynced(supabase, order.id, anySuccess, lastError);
+    }
+
 
     if (!sourceSystem?.webhook_url && !isShopOrder && !isEasyOrder) {
       return new Response(JSON.stringify({ message: "No webhook configured" }), {
