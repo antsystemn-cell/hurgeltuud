@@ -8,6 +8,17 @@ const corsHeaders = {
 
 const MAX_RETRIES = 5;
 
+function toStandardStatus(internal: string | null | undefined): string {
+  switch (internal) {
+    case "confirmed": return "confirmed";
+    case "phone_confirmed": return "assigned";
+    case "out_for_delivery": return "in_transit";
+    case "delivered": return "delivered";
+    case "cancelled": return "cancelled";
+    default: return "new";
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
