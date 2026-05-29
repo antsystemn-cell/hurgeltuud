@@ -133,7 +133,12 @@ serve(async (req) => {
       action: "order_created_via_api",
       entity_type: "order",
       entity_id: order.id,
-      details: { source_system: sourceSystem.code, external_order_id: body.external_order_id },
+      details: {
+        source_system: sourceSystem.code,
+        external_order_id: body.external_order_id,
+        merchant_name: order.merchant_name,
+        merchant_code: order.merchant_code,
+      },
     });
 
     return new Response(JSON.stringify({
