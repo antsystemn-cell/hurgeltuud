@@ -167,7 +167,7 @@ export default function OrderList() {
                   <div className="flex-1 min-w-0">
                     {/* Top row: name + badges */}
                     <div className="flex items-start justify-between gap-2">
-                      <div class="min-w-0">
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium text-foreground">{order.customer_name}</p>
                           {(order as any).merchant_name && (
