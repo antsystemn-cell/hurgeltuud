@@ -79,16 +79,19 @@ export default function OrderList() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [merchantFilter, setMerchantFilter] = useState<string>("all");
   const [driverFilter, setDriverFilter] = useState<string>("all");
 
   const { data: orders, isLoading } = useOrders({
     fulfillment_status: statusFilter !== "all" ? statusFilter as FulfillmentStatus : undefined,
     source_system_id: sourceFilter !== "all" ? sourceFilter : undefined,
+    merchant_code: merchantFilter !== "all" ? merchantFilter : undefined,
     driver_id: driverFilter !== "all" ? driverFilter : undefined,
     search: search || undefined,
   });
   const { data: drivers } = useDrivers();
   const { data: sources } = useSourceSystems();
+  const { data: merchants } = useMerchants();
   const updateStatus = useUpdateOrderStatus();
   const assignDriver = useAssignDriver();
   const updatePayment = useUpdatePaymentStatus();
