@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { useOrders, useDrivers, useSourceSystems, useUpdateOrderStatus, useAssignDriver, useUpdatePaymentStatus, useDeleteOrder, useUpdateOrderAddress, FULFILLMENT_LABELS, PAYMENT_LABELS, type FulfillmentStatus, type PaymentStatus } from "@/hooks/useOrders";
+import { useOrders, useDrivers, useSourceSystems, useMerchants, useUpdateOrderStatus, useAssignDriver, useUpdatePaymentStatus, useDeleteOrder, useUpdateOrderAddress, FULFILLMENT_LABELS, PAYMENT_LABELS, type FulfillmentStatus, type PaymentStatus } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Phone, Trash2, Printer, Pencil, Check, X } from "lucide-react";
+import { Search, Phone, Trash2, Printer, Pencil, Check, X, Store } from "lucide-react";
 import { STATUS_BORDER_COLORS, STATUS_BG_COLORS, formatOrderDate } from "@/lib/orderHelpers";
+
 
 function EditableAddress({ order, userId }: { order: any; userId: string }) {
   const [editing, setEditing] = useState(false);
@@ -78,16 +79,19 @@ export default function OrderList() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [merchantFilter, setMerchantFilter] = useState<string>("all");
   const [driverFilter, setDriverFilter] = useState<string>("all");
 
   const { data: orders, isLoading } = useOrders({
     fulfillment_status: statusFilter !== "all" ? statusFilter as FulfillmentStatus : undefined,
     source_system_id: sourceFilter !== "all" ? sourceFilter : undefined,
+    merchant_code: merchantFilter !== "all" ? merchantFilter : undefined,
     driver_id: driverFilter !== "all" ? driverFilter : undefined,
     search: search || undefined,
   });
   const { data: drivers } = useDrivers();
   const { data: sources } = useSourceSystems();
+  const { data: merchants } = useMerchants();
   const updateStatus = useUpdateOrderStatus();
   const assignDriver = useAssignDriver();
   const updatePayment = useUpdatePaymentStatus();
@@ -118,10 +122,20 @@ export default function OrderList() {
             {sources?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
           </SelectContent>
         </Select>
+        {!!merchants?.length && (
+          <Select value={merchantFilter} onValueChange={setMerchantFilter}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Дэлгүүр" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Бүх дэлгүүр</SelectItem>
+              {merchants.map((m) => <SelectItem key={m.code} value={m.code}>{m.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
         <Select value={driverFilter} onValueChange={setDriverFilter}>
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="Жолооч" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Бүх жолооч</SelectItem>
+
             {drivers?.map((d) => (
               <SelectItem key={d.user_id} value={d.user_id}>
                 {d.profiles.full_name}
@@ -154,7 +168,15 @@ export default function OrderList() {
                     {/* Top row: name + badges */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="font-medium text-foreground">{order.customer_name}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-foreground">{order.customer_name}</p>
+                          {(order as any).merchant_name && (
+                            <Badge variant="outline" className="text-xs whitespace-nowrap gap-1">
+                              <Store className="h-3 w-3" />
+                              {(order as any).merchant_name}
+                            </Badge>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2">
                           <a href={`tel:${order.phone}`} className="text-primary font-medium text-sm flex items-center gap-1">
                             <Phone className="h-3.5 w-3.5" />
@@ -166,6 +188,7 @@ export default function OrderList() {
                           {order.source_systems && ` • ${(order.source_systems as { name: string }).name}`}
                         </p>
                       </div>
+
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
                         <Badge variant="secondary" className="text-xs whitespace-nowrap">{FULFILLMENT_LABELS[order.fulfillment_status]}</Badge>
                         <Badge variant={order.payment_status === "paid" ? "default" : "outline"} className="text-xs">

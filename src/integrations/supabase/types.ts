@@ -140,6 +140,8 @@ export type Database = {
           internal_note: string | null
           internal_order_number: string
           last_sync_at: string | null
+          merchant_code: string | null
+          merchant_name: string | null
           out_for_delivery_at: string | null
           payment_collected_in_cash: boolean | null
           payment_method: string | null
@@ -176,6 +178,8 @@ export type Database = {
           internal_note?: string | null
           internal_order_number: string
           last_sync_at?: string | null
+          merchant_code?: string | null
+          merchant_name?: string | null
           out_for_delivery_at?: string | null
           payment_collected_in_cash?: boolean | null
           payment_method?: string | null
@@ -212,6 +216,8 @@ export type Database = {
           internal_note?: string | null
           internal_order_number?: string
           last_sync_at?: string | null
+          merchant_code?: string | null
+          merchant_name?: string | null
           out_for_delivery_at?: string | null
           payment_collected_in_cash?: boolean | null
           payment_method?: string | null

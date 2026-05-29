@@ -81,6 +81,9 @@ serve(async (req) => {
         source_system_id: sourceSystem.id,
         external_order_id: body.external_order_id,
         source_channel: body.source_channel || sourceSystem.code,
+        // Sub-classification: which shop/merchant inside the source marketplace (e.g. Only Hub)
+        merchant_name: body.merchant_name || body.shop_name || null,
+        merchant_code: body.merchant_code || body.shop_code || body.shop_id || null,
         idempotency_key: body.idempotency_key || null,
         customer_name: body.customer_name,
         phone: body.phone,
@@ -130,7 +133,12 @@ serve(async (req) => {
       action: "order_created_via_api",
       entity_type: "order",
       entity_id: order.id,
-      details: { source_system: sourceSystem.code, external_order_id: body.external_order_id },
+      details: {
+        source_system: sourceSystem.code,
+        external_order_id: body.external_order_id,
+        merchant_name: order.merchant_name,
+        merchant_code: order.merchant_code,
+      },
     });
 
     return new Response(JSON.stringify({

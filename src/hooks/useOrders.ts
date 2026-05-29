@@ -30,6 +30,7 @@ export function useOrders(filters?: {
   fulfillment_status?: FulfillmentStatus;
   driver_id?: string;
   source_system_id?: string;
+  merchant_code?: string;
   search?: string;
 }) {
   return useQuery({
@@ -49,9 +50,12 @@ export function useOrders(filters?: {
       if (filters?.source_system_id) {
         q = q.eq("source_system_id", filters.source_system_id);
       }
+      if (filters?.merchant_code) {
+        q = q.eq("merchant_code", filters.merchant_code);
+      }
       if (filters?.search) {
         q = q.or(
-          `customer_name.ilike.%${filters.search}%,phone.ilike.%${filters.search}%,internal_order_number.ilike.%${filters.search}%`
+          `customer_name.ilike.%${filters.search}%,phone.ilike.%${filters.search}%,internal_order_number.ilike.%${filters.search}%,merchant_name.ilike.%${filters.search}%`
         );
       }
 
@@ -61,6 +65,28 @@ export function useOrders(filters?: {
     },
   });
 }
+
+// Distinct merchants (shops within source marketplaces) for filtering
+export function useMerchants() {
+  return useQuery({
+    queryKey: ["merchants"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("merchant_code, merchant_name")
+        .not("merchant_code", "is", null);
+      if (error) throw error;
+      const map = new Map<string, string>();
+      for (const row of data as Array<{ merchant_code: string | null; merchant_name: string | null }>) {
+        if (row.merchant_code && !map.has(row.merchant_code)) {
+          map.set(row.merchant_code, row.merchant_name || row.merchant_code);
+        }
+      }
+      return Array.from(map, ([code, name]) => ({ code, name }));
+    },
+  });
+}
+
 
 export function useActiveOrders() {
   return useQuery({
