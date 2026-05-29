@@ -68,6 +68,7 @@ serve(async (req) => {
       const sourceSystem = order.source_systems as any;
       const isShopOrder = order.external_order_id?.startsWith("SHOP-");
       const isEasyOrder = order.external_order_id?.startsWith("EASY-");
+      const isOmhOrder = order.external_order_id?.startsWith("OMH-");
 
       let targetUrl: string | null = null;
       let headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -75,7 +76,14 @@ serve(async (req) => {
 
       const standardStatus = toStandardStatus(order.fulfillment_status);
 
-      if ((log.event_type === "shop_status_sync" && isShopOrder && sourceSystem?.api_key) ||
+      if (log.event_type === "omh_status_sync" && isOmhOrder) {
+        // Resend the exact stored payload so event_id stays stable (idempotency on Only Hub side)
+        const onlyHubUrl = sourceSystem?.webhook_url || Deno.env.get("ONLY_HUB_WEBHOOK_URL") || null;
+        const onlyHubKey = sourceSystem?.webhook_secret || Deno.env.get("ONLY_HUB_WEBHOOK_KEY") || null;
+        targetUrl = onlyHubUrl;
+        if (onlyHubKey) headers["x-api-key"] = onlyHubKey;
+        payload = (log.payload as Record<string, unknown>) ?? {};
+      } else if ((log.event_type === "shop_status_sync" && isShopOrder && sourceSystem?.api_key) ||
           (log.event_type === "easy_status_sync" && isEasyOrder && sourceSystem?.api_key)) {
         targetUrl = isEasyOrder ? EASY_WEBHOOK_URL : SHOP_WEBHOOK_URL;
         headers["x-api-key"] = sourceSystem.api_key;
@@ -89,7 +97,7 @@ serve(async (req) => {
           note: order.delivery_note || undefined,
           updated_at: new Date().toISOString(),
         };
-      } else if (sourceSystem?.webhook_url) {
+      } else if (sourceSystem?.webhook_url && !isOmhOrder) {
         targetUrl = sourceSystem.webhook_url;
         if (sourceSystem.webhook_secret) {
           headers["X-Webhook-Secret"] = sourceSystem.webhook_secret;
