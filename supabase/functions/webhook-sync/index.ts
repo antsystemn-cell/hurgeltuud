@@ -18,6 +18,18 @@ function toStandardStatus(internal: string | null | undefined): string {
   }
 }
 
+// Map internal fulfillment_status to Only Hub fulfillment_status vocabulary
+function toOnlyHubStatus(internal: string | null | undefined): string {
+  switch (internal) {
+    case "confirmed": return "assigned";
+    case "phone_confirmed": return "assigned";
+    case "out_for_delivery": return "in_transit";
+    case "delivered": return "delivered";
+    case "cancelled": return "cancelled";
+    default: return "assigned";
+  }
+}
+
 async function markOrderSynced(
   supabase: ReturnType<typeof createClient>,
   orderId: string,
@@ -82,6 +94,7 @@ serve(async (req) => {
     // Determine webhook target
     const isShopOrder = order.external_order_id?.startsWith("SHOP-");
     const isEasyOrder = order.external_order_id?.startsWith("EASY-");
+    const isOmhOrder = order.external_order_id?.startsWith("OMH-");
     const SHOP_WEBHOOK_URL = "https://oaqegsepcakxtspufyje.supabase.co/functions/v1/delivery-status-webhook";
     const EASY_WEBHOOK_URL = "https://jiqjebbxcwetakdhfuel.supabase.co/functions/v1/delivery-status-webhook";
 
@@ -89,6 +102,84 @@ serve(async (req) => {
     let anyAttempt = false;
     let anySuccess = false;
     let lastError: string | null = null;
+
+    // === Only Hub (only_merchants_hub) outbound webhook ===
+    // Only OMH- prefixed orders are sent to Only Hub, and only when a webhook URL is configured.
+    const onlyHubUrl = sourceSystem?.webhook_url || Deno.env.get("ONLY_HUB_WEBHOOK_URL") || null;
+    const onlyHubKey = sourceSystem?.webhook_secret || Deno.env.get("ONLY_HUB_WEBHOOK_KEY") || null;
+
+    if (isOmhOrder && onlyHubUrl) {
+      anyAttempt = true;
+
+      // Resolve driver info (minimal PII: id, name, phone)
+      let driver: { id: string; name: string | null; phone: string | null } | null = null;
+      if (order.assigned_driver_user_id) {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("user_id, full_name, phone")
+          .eq("user_id", order.assigned_driver_user_id)
+          .maybeSingle();
+        driver = {
+          id: order.assigned_driver_user_id as string,
+          name: (prof?.full_name as string) ?? null,
+          phone: (prof?.phone as string) ?? null,
+        };
+      }
+
+      const omhStatus = toOnlyHubStatus(order.fulfillment_status);
+      const eventId = crypto.randomUUID();
+
+      const payload: Record<string, unknown> = {
+        event: "delivery.status_changed",
+        event_id: eventId,
+        external_order_id: order.external_order_id,
+        internal_order_number: order.internal_order_number,
+        fulfillment_status: omhStatus,
+        driver,
+        timestamp: new Date().toISOString(),
+        note: order.delivery_note || null,
+      };
+      // payment_collected_in_cash is required on delivered
+      if (omhStatus === "delivered") {
+        payload.payment_collected_in_cash = order.payment_collected_in_cash === true;
+      }
+
+      let omhSuccess = false;
+      let omhStatusCode = 0;
+      let omhBody = "";
+      try {
+        const res = await fetch(onlyHubUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(onlyHubKey ? { "x-api-key": onlyHubKey } : {}),
+          },
+          body: JSON.stringify(payload),
+        });
+        omhStatusCode = res.status;
+        omhBody = await res.text();
+        omhSuccess = res.ok;
+      } catch (err) {
+        omhBody = err instanceof Error ? err.message : "Fetch failed";
+      }
+
+      if (omhSuccess) anySuccess = true;
+      else lastError = `omh: ${omhStatusCode} ${omhBody}`;
+
+      await supabase.from("webhook_logs").insert({
+        source_system_id: sourceSystem?.id ?? null,
+        order_id: order.id,
+        event_type: "omh_status_sync",
+        event_id: eventId,
+        payload,
+        response_status: omhStatusCode,
+        response_body: omhBody,
+        success: omhSuccess,
+        attempt_count: 1,
+        next_retry_at: omhSuccess ? null : new Date(Date.now() + 60 * 1000).toISOString(),
+      });
+    }
+
 
     // If it's a SHOP- order, send to the shop webhook endpoint
     if (isShopOrder && sourceSystem?.api_key) {
@@ -188,8 +279,9 @@ serve(async (req) => {
       });
     }
 
-    // Also send to source system's own webhook_url if configured
-    if (sourceSystem?.webhook_url) {
+    // Also send to source system's own webhook_url if configured.
+    // OMH orders are already handled by the dedicated Only Hub branch above.
+    if (sourceSystem?.webhook_url && !isOmhOrder) {
       anyAttempt = true;
       const payload = {
         event: event_type,
@@ -247,7 +339,7 @@ serve(async (req) => {
     }
 
 
-    if (!sourceSystem?.webhook_url && !isShopOrder && !isEasyOrder) {
+    if (!anyAttempt) {
       return new Response(JSON.stringify({ message: "No webhook configured" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

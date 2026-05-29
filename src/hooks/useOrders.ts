@@ -120,10 +120,12 @@ export function useUpdateOrderStatus() {
       orderId,
       status,
       userId,
+      paymentCollectedInCash,
     }: {
       orderId: string;
       status: FulfillmentStatus;
       userId: string;
+      paymentCollectedInCash?: boolean;
     }) => {
       const updates: {
         fulfillment_status: FulfillmentStatus;
@@ -132,6 +134,7 @@ export function useUpdateOrderStatus() {
         out_for_delivery_at?: string;
         delivered_at?: string;
         cancelled_at?: string;
+        payment_collected_in_cash?: boolean;
       } = {
         fulfillment_status: status,
         updated_by_user_id: userId,
@@ -140,11 +143,18 @@ export function useUpdateOrderStatus() {
       if (status === "out_for_delivery") updates.out_for_delivery_at = new Date().toISOString();
       if (status === "delivered") updates.delivered_at = new Date().toISOString();
       if (status === "cancelled") updates.cancelled_at = new Date().toISOString();
+      if (typeof paymentCollectedInCash === "boolean") {
+        updates.payment_collected_in_cash = paymentCollectedInCash;
+        // If cash was collected on delivery, also mark as paid
+        if (paymentCollectedInCash && status === "delivered") {
+          (updates as Record<string, unknown>).payment_status = "paid";
+        }
+      }
 
       const { error } = await supabase.from("orders").update(updates).eq("id", orderId);
       if (error) throw error;
 
-      // Fire-and-forget: sync status to shop
+      // Fire-and-forget: sync status to shop / merchant
       fireShopWebhook(orderId);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),

@@ -19,6 +19,15 @@ function toStandardStatus(internal: string | null | undefined): string {
   }
 }
 
+// Exponential backoff schedule (minutes) with jitter: 1, 5, 30, 120, 360
+const BACKOFF_MINUTES = [1, 5, 30, 120, 360];
+function nextRetryAt(nextAttemptCount: number): string {
+  const idx = Math.min(nextAttemptCount - 1, BACKOFF_MINUTES.length - 1);
+  const baseMs = BACKOFF_MINUTES[Math.max(0, idx)] * 60 * 1000;
+  const jitterMs = Math.floor(Math.random() * 30 * 1000); // up to 30s jitter
+  return new Date(Date.now() + baseMs + jitterMs).toISOString();
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -59,6 +68,7 @@ serve(async (req) => {
       const sourceSystem = order.source_systems as any;
       const isShopOrder = order.external_order_id?.startsWith("SHOP-");
       const isEasyOrder = order.external_order_id?.startsWith("EASY-");
+      const isOmhOrder = order.external_order_id?.startsWith("OMH-");
 
       let targetUrl: string | null = null;
       let headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -66,7 +76,14 @@ serve(async (req) => {
 
       const standardStatus = toStandardStatus(order.fulfillment_status);
 
-      if ((log.event_type === "shop_status_sync" && isShopOrder && sourceSystem?.api_key) ||
+      if (log.event_type === "omh_status_sync" && isOmhOrder) {
+        // Resend the exact stored payload so event_id stays stable (idempotency on Only Hub side)
+        const onlyHubUrl = sourceSystem?.webhook_url || Deno.env.get("ONLY_HUB_WEBHOOK_URL") || null;
+        const onlyHubKey = sourceSystem?.webhook_secret || Deno.env.get("ONLY_HUB_WEBHOOK_KEY") || null;
+        targetUrl = onlyHubUrl;
+        if (onlyHubKey) headers["x-api-key"] = onlyHubKey;
+        payload = (log.payload as Record<string, unknown>) ?? {};
+      } else if ((log.event_type === "shop_status_sync" && isShopOrder && sourceSystem?.api_key) ||
           (log.event_type === "easy_status_sync" && isEasyOrder && sourceSystem?.api_key)) {
         targetUrl = isEasyOrder ? EASY_WEBHOOK_URL : SHOP_WEBHOOK_URL;
         headers["x-api-key"] = sourceSystem.api_key;
@@ -80,7 +97,7 @@ serve(async (req) => {
           note: order.delivery_note || undefined,
           updated_at: new Date().toISOString(),
         };
-      } else if (sourceSystem?.webhook_url) {
+      } else if (sourceSystem?.webhook_url && !isOmhOrder) {
         targetUrl = sourceSystem.webhook_url;
         if (sourceSystem.webhook_secret) {
           headers["X-Webhook-Secret"] = sourceSystem.webhook_secret;
@@ -119,14 +136,15 @@ serve(async (req) => {
       }
 
       // Update the log entry
+      const newAttemptCount = (log.attempt_count || 1) + 1;
       await supabase
         .from("webhook_logs")
         .update({
-          attempt_count: (log.attempt_count || 1) + 1,
+          attempt_count: newAttemptCount,
           success,
           response_status: responseStatus,
           response_body: responseBody,
-          next_retry_at: success ? null : new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+          next_retry_at: success || newAttemptCount >= MAX_RETRIES ? null : nextRetryAt(newAttemptCount),
         })
         .eq("id", log.id);
 

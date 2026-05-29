@@ -34,9 +34,9 @@ export default function DriverDashboard() {
     if (!user) return;
     updatePayment.mutate({ orderId, status: "paid", userId: user.id });
   };
-  const handleMarkDelivered = (orderId: string) => {
+  const handleMarkDelivered = (orderId: string, paymentCollectedInCash?: boolean) => {
     if (!user) return;
-    updateStatus.mutate({ orderId, status: "delivered", userId: user.id });
+    updateStatus.mutate({ orderId, status: "delivered", userId: user.id, paymentCollectedInCash });
   };
 
   const handleMarkCancelled = (orderId: string) => {
@@ -199,18 +199,45 @@ export default function DriverDashboard() {
                       </button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Хүргэсэн гэж тэмдэглэх үү?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {order.customer_name} — {order.internal_order_number} захиалгыг хүргэсэн гэж тэмдэглэнэ.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Үгүй</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleMarkDelivered(order.id)}>Тийм</AlertDialogAction>
-                      </AlertDialogFooter>
+                      {order.external_order_id?.startsWith("OMH-") ? (
+                        <>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Төлбөрийг газар дээр авсан уу?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {order.customer_name} — {order.internal_order_number} захиалгыг хүргэсэн гэж тэмдэглэнэ.
+                              Төлбөрийг бэлнээр газар дээр авсан бол "Тийм", аваагүй бол "Үгүй" сонгоно уу.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Болих</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                              onClick={() => handleMarkDelivered(order.id, false)}
+                            >
+                              Үгүй
+                            </AlertDialogAction>
+                            <AlertDialogAction onClick={() => handleMarkDelivered(order.id, true)}>
+                              Тийм
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </>
+                      ) : (
+                        <>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Хүргэсэн гэж тэмдэглэх үү?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {order.customer_name} — {order.internal_order_number} захиалгыг хүргэсэн гэж тэмдэглэнэ.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Үгүй</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleMarkDelivered(order.id)}>Тийм</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </>
+                      )}
                     </AlertDialogContent>
                   </AlertDialog>
+
 
                   <AlertDialog>
                     <AlertDialogTrigger asChild>

@@ -49,6 +49,14 @@ serve(async (req) => {
       });
     }
 
+    // Only Hub orders must use the OMH- prefix
+    if (sourceSystem.code === "only_merchants_hub" && !external_order_id.startsWith("OMH-")) {
+      return new Response(JSON.stringify({ error: "external_order_id must start with OMH- for only_merchants_hub" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Validate statuses
     const validFulfillment = ["confirmed", "phone_confirmed", "out_for_delivery", "delivered", "cancelled"];
     const validPayment = ["unpaid", "cash_on_delivery", "paid", "refunded"];
@@ -77,7 +85,7 @@ serve(async (req) => {
     // Find the order
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("id, fulfillment_status, payment_status, external_order_id")
+      .select("id, fulfillment_status, payment_status, external_order_id, assigned_driver_user_id, internal_order_number")
       .eq("external_order_id", external_order_id)
       .eq("source_system_id", sourceSystem.id)
       .single();
@@ -148,6 +156,21 @@ serve(async (req) => {
         changes,
       },
     });
+
+    // Notify the assigned driver when the order is cancelled from the merchant side
+    if (changes.fulfillment_status?.new === "cancelled" && order.assigned_driver_user_id) {
+      await supabase.from("audit_logs").insert({
+        user_id: order.assigned_driver_user_id,
+        action: "driver_notified_cancel",
+        entity_type: "order",
+        entity_id: order.id,
+        details: {
+          source_system: sourceSystem.code,
+          internal_order_number: order.internal_order_number,
+          message: "Захиалга мерчантаас цуцлагдсан",
+        },
+      });
+    }
 
     return new Response(JSON.stringify({
       success: true,

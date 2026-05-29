@@ -62,9 +62,11 @@ serve(async (req) => {
 
     if (existing) {
       return new Response(JSON.stringify({
+        ok: true,
         message: "Order already exists",
         order_id: existing.id,
         internal_order_number: existing.internal_order_number,
+        tracking_code: existing.internal_order_number,
       }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -132,9 +134,11 @@ serve(async (req) => {
     });
 
     return new Response(JSON.stringify({
+      ok: true,
       success: true,
       order_id: order.id,
       internal_order_number: order.internal_order_number,
+      tracking_code: order.internal_order_number,
     }), {
       status: 201,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

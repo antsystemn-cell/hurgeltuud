@@ -20,6 +20,7 @@ import SourceSystems from "./pages/admin/SourceSystems";
 import Reports from "./pages/admin/Reports";
 import PwaSettings from "./pages/admin/PwaSettings";
 import WalletManagement from "./pages/admin/WalletManagement";
+import OnlyHubIntegration from "./pages/admin/OnlyHubIntegration";
 import NotFound from "./pages/NotFound";
 import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
 
@@ -81,6 +82,7 @@ const App = () => (
             <Route path="/admin/settings" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><SourceSystems /></LayoutWrap></RequireAuth>} />
             <Route path="/admin/pwa" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><PwaSettings /></LayoutWrap></RequireAuth>} />
             <Route path="/admin/wallet" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><WalletManagement /></LayoutWrap></RequireAuth>} />
+            <Route path="/admin/only-hub" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><OnlyHubIntegration /></LayoutWrap></RequireAuth>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
