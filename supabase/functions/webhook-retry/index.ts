@@ -136,14 +136,15 @@ serve(async (req) => {
       }
 
       // Update the log entry
+      const newAttemptCount = (log.attempt_count || 1) + 1;
       await supabase
         .from("webhook_logs")
         .update({
-          attempt_count: (log.attempt_count || 1) + 1,
+          attempt_count: newAttemptCount,
           success,
           response_status: responseStatus,
           response_body: responseBody,
-          next_retry_at: success ? null : new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+          next_retry_at: success || newAttemptCount >= MAX_RETRIES ? null : nextRetryAt(newAttemptCount),
         })
         .eq("id", log.id);
 
