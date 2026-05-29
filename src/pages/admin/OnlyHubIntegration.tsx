@@ -121,7 +121,19 @@ export default function OnlyHubIntegrationPage() {
         <p className="text-xs font-mono bg-muted px-2 py-1 rounded break-all">{FUNCTIONS_BASE}/order-intake</p>
         <p className="text-xs text-muted-foreground">Төлөв шинэчлэх (header: <code>x-api-key</code>):</p>
         <p className="text-xs font-mono bg-muted px-2 py-1 rounded break-all">{FUNCTIONS_BASE}/status-update-inbound</p>
-      </div>
+        <div className="mt-3 pt-3 border-t border-border/50 space-y-1">
+          <p className="text-xs font-medium text-foreground">Дэлгүүрийн ангилал (нэг API-аар олон дэлгүүрийн захиалга)</p>
+          <p className="text-[11px] text-muted-foreground">
+            Захиалга илгээхдээ <code>order-intake</code> body дотор аль дэлгүүрийнх болохыг доорх талбараар нэмж илгээнэ үү. Ингэснээр Swift Delivery Hub дээр захиалгыг дэлгүүрээр нь ангилж, шүүж харна.
+          </p>
+          <p className="text-[11px] font-mono bg-muted px-2 py-1 rounded break-all">
+            {`{ "merchant_code": "shop_123", "merchant_name": "Дэлгүүрийн нэр", ... }`}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            <code>shop_code</code>/<code>shop_id</code>, <code>shop_name</code> нэрсийг бас хүлээн авна.
+          </p>
+        </div>
+
 
       {/* Config form */}
       <div className="bg-card border border-border rounded-xl p-4 space-y-3">
