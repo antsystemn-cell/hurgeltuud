@@ -167,8 +167,16 @@ export default function OrderList() {
                   <div className="flex-1 min-w-0">
                     {/* Top row: name + badges */}
                     <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground">{order.customer_name}</p>
+                      <div class="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-foreground">{order.customer_name}</p>
+                          {(order as any).merchant_name && (
+                            <Badge variant="outline" className="text-xs whitespace-nowrap gap-1">
+                              <Store className="h-3 w-3" />
+                              {(order as any).merchant_name}
+                            </Badge>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2">
                           <a href={`tel:${order.phone}`} className="text-primary font-medium text-sm flex items-center gap-1">
                             <Phone className="h-3.5 w-3.5" />
@@ -180,6 +188,7 @@ export default function OrderList() {
                           {order.source_systems && ` • ${(order.source_systems as { name: string }).name}`}
                         </p>
                       </div>
+
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
                         <Badge variant="secondary" className="text-xs whitespace-nowrap">{FULFILLMENT_LABELS[order.fulfillment_status]}</Badge>
                         <Badge variant={order.payment_status === "paid" ? "default" : "outline"} className="text-xs">
