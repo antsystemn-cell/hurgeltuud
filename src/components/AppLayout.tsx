@@ -20,6 +20,7 @@ import {
   Home,
   Smartphone,
   Wallet,
+  Link2,
 } from "lucide-react";
 import { useState } from "react";
 
