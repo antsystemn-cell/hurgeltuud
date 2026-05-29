@@ -122,10 +122,20 @@ export default function OrderList() {
             {sources?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
           </SelectContent>
         </Select>
+        {!!merchants?.length && (
+          <Select value={merchantFilter} onValueChange={setMerchantFilter}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Дэлгүүр" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Бүх дэлгүүр</SelectItem>
+              {merchants.map((m) => <SelectItem key={m.code} value={m.code}>{m.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
         <Select value={driverFilter} onValueChange={setDriverFilter}>
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="Жолооч" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Бүх жолооч</SelectItem>
+
             {drivers?.map((d) => (
               <SelectItem key={d.user_id} value={d.user_id}>
                 {d.profiles.full_name}
