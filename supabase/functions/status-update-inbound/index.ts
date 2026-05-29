@@ -157,6 +157,21 @@ serve(async (req) => {
       },
     });
 
+    // Notify the assigned driver when the order is cancelled from the merchant side
+    if (changes.fulfillment_status?.new === "cancelled" && order.assigned_driver_user_id) {
+      await supabase.from("audit_logs").insert({
+        user_id: order.assigned_driver_user_id,
+        action: "driver_notified_cancel",
+        entity_type: "order",
+        entity_id: order.id,
+        details: {
+          source_system: sourceSystem.code,
+          internal_order_number: order.internal_order_number,
+          message: "Захиалга мерчантаас цуцлагдсан",
+        },
+      });
+    }
+
     return new Response(JSON.stringify({
       success: true,
       order_id: order.id,
