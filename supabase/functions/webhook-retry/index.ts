@@ -19,6 +19,15 @@ function toStandardStatus(internal: string | null | undefined): string {
   }
 }
 
+// Exponential backoff schedule (minutes) with jitter: 1, 5, 30, 120, 360
+const BACKOFF_MINUTES = [1, 5, 30, 120, 360];
+function nextRetryAt(nextAttemptCount: number): string {
+  const idx = Math.min(nextAttemptCount - 1, BACKOFF_MINUTES.length - 1);
+  const baseMs = BACKOFF_MINUTES[Math.max(0, idx)] * 60 * 1000;
+  const jitterMs = Math.floor(Math.random() * 30 * 1000); // up to 30s jitter
+  return new Date(Date.now() + baseMs + jitterMs).toISOString();
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
