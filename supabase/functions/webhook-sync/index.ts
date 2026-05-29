@@ -18,6 +18,18 @@ function toStandardStatus(internal: string | null | undefined): string {
   }
 }
 
+// Map internal fulfillment_status to Only Hub fulfillment_status vocabulary
+function toOnlyHubStatus(internal: string | null | undefined): string {
+  switch (internal) {
+    case "confirmed": return "assigned";
+    case "phone_confirmed": return "assigned";
+    case "out_for_delivery": return "in_transit";
+    case "delivered": return "delivered";
+    case "cancelled": return "cancelled";
+    default: return "assigned";
+  }
+}
+
 async function markOrderSynced(
   supabase: ReturnType<typeof createClient>,
   orderId: string,
