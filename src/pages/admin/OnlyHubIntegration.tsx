@@ -133,6 +133,9 @@ export default function OnlyHubIntegrationPage() {
             <code>shop_code</code>/<code>shop_id</code>, <code>shop_name</code> нэрсийг бас хүлээн авна.
           </p>
         </div>
+      </div>
+
+
 
 
       {/* Config form */}
