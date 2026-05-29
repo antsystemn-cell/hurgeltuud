@@ -49,6 +49,14 @@ serve(async (req) => {
       });
     }
 
+    // Only Hub orders must use the OMH- prefix
+    if (sourceSystem.code === "only_merchants_hub" && !external_order_id.startsWith("OMH-")) {
+      return new Response(JSON.stringify({ error: "external_order_id must start with OMH- for only_merchants_hub" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Validate statuses
     const validFulfillment = ["confirmed", "phone_confirmed", "out_for_delivery", "delivered", "cancelled"];
     const validPayment = ["unpaid", "cash_on_delivery", "paid", "refunded"];
