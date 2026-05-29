@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { useOrders, useDrivers, useSourceSystems, useUpdateOrderStatus, useAssignDriver, useUpdatePaymentStatus, useDeleteOrder, useUpdateOrderAddress, FULFILLMENT_LABELS, PAYMENT_LABELS, type FulfillmentStatus, type PaymentStatus } from "@/hooks/useOrders";
+import { useOrders, useDrivers, useSourceSystems, useMerchants, useUpdateOrderStatus, useAssignDriver, useUpdatePaymentStatus, useDeleteOrder, useUpdateOrderAddress, FULFILLMENT_LABELS, PAYMENT_LABELS, type FulfillmentStatus, type PaymentStatus } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Phone, Trash2, Printer, Pencil, Check, X } from "lucide-react";
+import { Search, Phone, Trash2, Printer, Pencil, Check, X, Store } from "lucide-react";
 import { STATUS_BORDER_COLORS, STATUS_BG_COLORS, formatOrderDate } from "@/lib/orderHelpers";
+
 
 function EditableAddress({ order, userId }: { order: any; userId: string }) {
   const [editing, setEditing] = useState(false);
