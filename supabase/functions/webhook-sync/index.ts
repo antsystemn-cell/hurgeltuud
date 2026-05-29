@@ -279,8 +279,9 @@ serve(async (req) => {
       });
     }
 
-    // Also send to source system's own webhook_url if configured
-    if (sourceSystem?.webhook_url) {
+    // Also send to source system's own webhook_url if configured.
+    // OMH orders are already handled by the dedicated Only Hub branch above.
+    if (sourceSystem?.webhook_url && !isOmhOrder) {
       anyAttempt = true;
       const payload = {
         event: event_type,
