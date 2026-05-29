@@ -141,6 +141,7 @@ export type Database = {
           internal_order_number: string
           last_sync_at: string | null
           out_for_delivery_at: string | null
+          payment_collected_in_cash: boolean | null
           payment_method: string | null
           payment_status: Database["public"]["Enums"]["payment_status"]
           phone: string
@@ -176,6 +177,7 @@ export type Database = {
           internal_order_number: string
           last_sync_at?: string | null
           out_for_delivery_at?: string | null
+          payment_collected_in_cash?: boolean | null
           payment_method?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           phone: string
@@ -211,6 +213,7 @@ export type Database = {
           internal_order_number?: string
           last_sync_at?: string | null
           out_for_delivery_at?: string | null
+          payment_collected_in_cash?: boolean | null
           payment_method?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           phone?: string
@@ -430,6 +433,7 @@ export type Database = {
         Row: {
           attempt_count: number | null
           created_at: string
+          event_id: string | null
           event_type: string
           id: string
           next_retry_at: string | null
@@ -443,6 +447,7 @@ export type Database = {
         Insert: {
           attempt_count?: number | null
           created_at?: string
+          event_id?: string | null
           event_type: string
           id?: string
           next_retry_at?: string | null
@@ -456,6 +461,7 @@ export type Database = {
         Update: {
           attempt_count?: number | null
           created_at?: string
+          event_id?: string | null
           event_type?: string
           id?: string
           next_retry_at?: string | null
