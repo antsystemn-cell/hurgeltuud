@@ -82,6 +82,7 @@ const App = () => (
             <Route path="/admin/settings" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><SourceSystems /></LayoutWrap></RequireAuth>} />
             <Route path="/admin/pwa" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><PwaSettings /></LayoutWrap></RequireAuth>} />
             <Route path="/admin/wallet" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><WalletManagement /></LayoutWrap></RequireAuth>} />
+            <Route path="/admin/only-hub" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><OnlyHubIntegration /></LayoutWrap></RequireAuth>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
