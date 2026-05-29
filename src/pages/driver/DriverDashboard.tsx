@@ -97,15 +97,19 @@ export default function DriverDashboard() {
               </div>
 
               {/* Location */}
-              {order.district && (
-                <div className="flex items-start gap-2 text-sm">
-                  <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+              {(order.district || order.address_text) && (
+                <div className="flex items-start gap-2 text-sm rounded-lg bg-secondary/50 p-2.5">
+                  <MapPin className="h-4 w-4 mt-0.5 text-primary shrink-0" />
                   <div>
-                    <p className="font-medium text-foreground">{order.district}</p>
+                    {order.district && <p className="font-medium text-foreground">{order.district}</p>}
                     {order.address_text && <p className="text-muted-foreground">{order.address_text}</p>}
+                    {order.delivery_note && (
+                      <p className="text-xs text-muted-foreground mt-1">📝 {order.delivery_note}</p>
+                    )}
                   </div>
                 </div>
               )}
+
 
               {/* Items */}
               {order.order_items && order.order_items.length > 0 && (
