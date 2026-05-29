@@ -85,7 +85,7 @@ serve(async (req) => {
     // Find the order
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("id, fulfillment_status, payment_status, external_order_id")
+      .select("id, fulfillment_status, payment_status, external_order_id, assigned_driver_user_id, internal_order_number")
       .eq("external_order_id", external_order_id)
       .eq("source_system_id", sourceSystem.id)
       .single();
