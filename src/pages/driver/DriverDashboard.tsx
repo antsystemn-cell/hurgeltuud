@@ -72,13 +72,18 @@ export default function DriverDashboard() {
         <div className="text-center py-8 text-muted-foreground">Захиалга олдсонгүй</div>
       ) : (
         <div className="space-y-3">
-          {orders.map((order) => (
+          {orders.map((order, index) => (
             <div key={order.id} className="bg-card border border-border rounded-xl p-4 space-y-3">
               {/* Header */}
               <div className="flex items-start justify-between">
-                <div>
-                  <p className="font-medium text-foreground">{order.customer_name}</p>
-                  <p className="text-xs text-muted-foreground">{order.internal_order_number}</p>
+                <div className="flex items-start gap-2">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <p className="font-medium text-foreground">{order.customer_name}</p>
+                    <p className="text-xs text-muted-foreground">{order.internal_order_number}</p>
+                  </div>
                 </div>
                 <Badge
                   variant={
@@ -92,15 +97,19 @@ export default function DriverDashboard() {
               </div>
 
               {/* Location */}
-              {order.district && (
-                <div className="flex items-start gap-2 text-sm">
-                  <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+              {(order.district || order.address_text) && (
+                <div className="flex items-start gap-2 text-sm rounded-lg bg-secondary/50 p-2.5">
+                  <MapPin className="h-4 w-4 mt-0.5 text-primary shrink-0" />
                   <div>
-                    <p className="font-medium text-foreground">{order.district}</p>
+                    {order.district && <p className="font-medium text-foreground">{order.district}</p>}
                     {order.address_text && <p className="text-muted-foreground">{order.address_text}</p>}
+                    {order.delivery_note && (
+                      <p className="text-xs text-muted-foreground mt-1">📝 {order.delivery_note}</p>
+                    )}
                   </div>
                 </div>
               )}
+
 
               {/* Items */}
               {order.order_items && order.order_items.length > 0 && (
