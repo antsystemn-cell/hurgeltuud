@@ -72,13 +72,18 @@ export default function DriverDashboard() {
         <div className="text-center py-8 text-muted-foreground">Захиалга олдсонгүй</div>
       ) : (
         <div className="space-y-3">
-          {orders.map((order) => (
+          {orders.map((order, index) => (
             <div key={order.id} className="bg-card border border-border rounded-xl p-4 space-y-3">
               {/* Header */}
               <div className="flex items-start justify-between">
-                <div>
-                  <p className="font-medium text-foreground">{order.customer_name}</p>
-                  <p className="text-xs text-muted-foreground">{order.internal_order_number}</p>
+                <div className="flex items-start gap-2">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <p className="font-medium text-foreground">{order.customer_name}</p>
+                    <p className="text-xs text-muted-foreground">{order.internal_order_number}</p>
+                  </div>
                 </div>
                 <Badge
                   variant={
