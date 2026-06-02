@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
 import { useDriverOrders, useUpdateOrderStatus, useUpdatePaymentStatus, FULFILLMENT_LABELS, PAYMENT_LABELS } from "@/hooks/useOrders";
 import { Badge } from "@/components/ui/badge";
-import { Phone, MapPin, CheckCircle2, XCircle, Banknote } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Phone, MapPin, CheckCircle2, XCircle, Banknote, Search, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,9 +32,30 @@ const FILTERS = [
 export default function DriverDashboard() {
   const { user } = useAuth();
   const [filter, setFilter] = useState<string>("active");
+  const [search, setSearch] = useState("");
   const { data: orders, isLoading } = useDriverOrders(user?.id || "", filter);
   const updateStatus = useUpdateOrderStatus();
   const updatePayment = useUpdatePaymentStatus();
+
+  const filteredOrders = useMemo(() => {
+    if (!orders) return [];
+    const term = search.trim().toLowerCase();
+    if (!term) return orders;
+    return orders.filter((order) => {
+      const haystack = [
+        order.customer_name,
+        order.phone,
+        order.internal_order_number,
+        order.district,
+        order.address_text,
+        order.delivery_note,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [orders, search]);
 
   const handleMarkPaid = (orderId: string) => {
     if (!user) return;
@@ -47,6 +74,17 @@ export default function DriverDashboard() {
   return (
     <div className="p-4 max-w-lg mx-auto space-y-4">
       <h2 className="text-xl font-semibold text-foreground">Миний хүргэлтүүд</h2>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Нэр, утас, хаягаар хайх..."
+          className="pl-9"
+        />
+      </div>
 
       {/* Filters */}
       <div className="flex gap-2 overflow-x-auto pb-1">
@@ -68,217 +106,234 @@ export default function DriverDashboard() {
 
       {isLoading ? (
         <div className="text-center py-8 text-muted-foreground">Уншиж байна...</div>
-      ) : !orders?.length ? (
-        <div className="text-center py-8 text-muted-foreground">Захиалга олдсонгүй</div>
+      ) : !filteredOrders.length ? (
+        <div className="text-center py-8 text-muted-foreground">
+          {search.trim() ? "Хайлтад тохирох захиалга олдсонгүй" : "Захиалга олдсонгүй"}
+        </div>
       ) : (
         <div className="space-y-3">
-          {orders.map((order, index) => (
-            <div key={order.id} className="bg-card border border-border rounded-xl p-4 space-y-3">
-              {/* Header */}
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-2">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
-                    {index + 1}
-                  </span>
-                  <div>
-                    <p className="font-medium text-foreground">{order.customer_name}</p>
-                    <p className="text-xs text-muted-foreground">{order.internal_order_number}</p>
+          {filteredOrders.map((order, index) => (
+            <Collapsible key={order.id} className="bg-card border border-border rounded-xl">
+              {/* Compact summary row — always visible, click to expand */}
+              <CollapsibleTrigger className="w-full p-4 flex items-start gap-3 text-left [&[data-state=open]>svg.chevron]:rotate-180">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
+                  {index + 1}
+                </span>
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium text-foreground truncate">{order.customer_name}</p>
+                    <Badge
+                      variant={
+                        order.fulfillment_status === "delivered" ? "default" :
+                        order.fulfillment_status === "cancelled" ? "destructive" : "secondary"
+                      }
+                      className="text-xs shrink-0"
+                    >
+                      {FULFILLMENT_LABELS[order.fulfillment_status]}
+                    </Badge>
                   </div>
+                  <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Phone className="h-3.5 w-3.5 shrink-0" />
+                    {order.phone}
+                  </p>
+                  {(order.district || order.address_text) && (
+                    <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
+                      <MapPin className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
+                      <span className="truncate">
+                        {[order.district, order.address_text].filter(Boolean).join(", ")}
+                      </span>
+                    </p>
+                  )}
                 </div>
-                <Badge
-                  variant={
-                    order.fulfillment_status === "delivered" ? "default" :
-                    order.fulfillment_status === "cancelled" ? "destructive" : "secondary"
-                  }
-                  className="text-xs"
-                >
-                  {FULFILLMENT_LABELS[order.fulfillment_status]}
-                </Badge>
-              </div>
+                <ChevronDown className="chevron h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200 mt-0.5" />
+              </CollapsibleTrigger>
 
-              {/* Location */}
-              {(order.district || order.address_text) && (
-                <div className="flex items-start gap-2 text-sm rounded-lg bg-secondary/50 p-2.5">
-                  <MapPin className="h-4 w-4 mt-0.5 text-primary shrink-0" />
-                  <div>
-                    {order.district && <p className="font-medium text-foreground">{order.district}</p>}
-                    {order.address_text && <p className="text-muted-foreground">{order.address_text}</p>}
-                    {order.delivery_note && (
-                      <p className="text-xs text-muted-foreground mt-1">📝 {order.delivery_note}</p>
-                    )}
-                  </div>
-                </div>
-              )}
+              <CollapsibleContent className="px-4 pb-4 space-y-3">
+                {/* Order number */}
+                <p className="text-xs text-muted-foreground">{order.internal_order_number}</p>
 
-
-              {/* Items */}
-              {order.order_items && order.order_items.length > 0 && (
-                <div className="text-sm text-muted-foreground">
-                  {order.order_items.map((item: { id: string; product_name_snapshot: string; quantity: number }) => (
-                    <p key={item.id}>{item.product_name_snapshot} × {item.quantity}</p>
-                  ))}
-                </div>
-              )}
-
-              {/* Payment status badge */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm">💰</span>
-                <Badge
-                  variant={order.payment_status === "paid" ? "default" : "secondary"}
-                  className="text-xs"
-                >
-                  {PAYMENT_LABELS[order.payment_status]}
-                </Badge>
-                {order.total_amount ? (
-                  <span className="text-sm font-medium text-foreground">₮{Number(order.total_amount).toLocaleString()}</span>
-                ) : null}
-                {order.payment_status === "paid" && (
-                  <span className="text-[10px] text-muted-foreground">✓ Жолооч баталсан</span>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="grid grid-cols-2 gap-2">
-                {/* Call button */}
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <button className="flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
-                      <Phone className="h-4 w-4" />
-                      <span className="text-xs">Залгах</span>
-                      <span className="text-[10px] opacity-80 leading-tight">{order.phone}</span>
-                    </button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Залгах уу?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        {order.customer_name} — {order.phone} руу залгах гэж байна.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Үгүй</AlertDialogCancel>
-                      <AlertDialogAction asChild>
-                        <a href={`tel:${order.phone}`}>Тийм</a>
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-
-                {/* Payment collected button */}
-                {order.payment_status !== "paid" ? (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <button
-                        className="flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 rounded-lg bg-amber-600 text-white text-sm font-medium disabled:opacity-50"
-                        disabled={updatePayment.isPending}
-                      >
-                        <Banknote className="h-5 w-5" />
-                        <span className="text-xs">Төлбөр авсан</span>
-                      </button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Төлбөр төлүүлсэн үү?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {order.customer_name} — ₮{Number(order.total_amount || 0).toLocaleString()} төлбөр авсан гэж тэмдэглэнэ. Итгэлтэй байна уу?
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Үгүй</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleMarkPaid(order.id)}>Тийм</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                ) : (
-                  <div />
-                )}
-              </div>
-
-              {/* Fulfillment actions */}
-              {order.fulfillment_status !== "delivered" && order.fulfillment_status !== "cancelled" && (
-                <div className="grid grid-cols-2 gap-2">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <button
-                        className="flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-medium disabled:opacity-50"
-                        disabled={updateStatus.isPending}
-                      >
-                        <CheckCircle2 className="h-5 w-5" />
-                        <span className="text-xs">Хүргэсэн</span>
-                      </button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      {order.external_order_id?.startsWith("OMH-") ? (
-                        <>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Төлбөрийг газар дээр авсан уу?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {order.customer_name} — {order.internal_order_number} захиалгыг хүргэсэн гэж тэмдэглэнэ.
-                              Төлбөрийг бэлнээр газар дээр авсан бол "Тийм", аваагүй бол "Үгүй" сонгоно уу.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Болих</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-secondary text-secondary-foreground hover:bg-secondary/90"
-                              onClick={() => handleMarkDelivered(order.id, false)}
-                            >
-                              Үгүй
-                            </AlertDialogAction>
-                            <AlertDialogAction onClick={() => handleMarkDelivered(order.id, true)}>
-                              Тийм
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </>
-                      ) : (
-                        <>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Хүргэсэн гэж тэмдэглэх үү?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {order.customer_name} — {order.internal_order_number} захиалгыг хүргэсэн гэж тэмдэглэнэ.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Үгүй</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleMarkDelivered(order.id)}>Тийм</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </>
+                {/* Full location with note */}
+                {(order.district || order.address_text || order.delivery_note) && (
+                  <div className="flex items-start gap-2 text-sm rounded-lg bg-secondary/50 p-2.5">
+                    <MapPin className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                    <div>
+                      {order.district && <p className="font-medium text-foreground">{order.district}</p>}
+                      {order.address_text && <p className="text-muted-foreground">{order.address_text}</p>}
+                      {order.delivery_note && (
+                        <p className="text-xs text-muted-foreground mt-1">📝 {order.delivery_note}</p>
                       )}
-                    </AlertDialogContent>
-                  </AlertDialog>
+                    </div>
+                  </div>
+                )}
 
+                {/* Items */}
+                {order.order_items && order.order_items.length > 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    {order.order_items.map((item: { id: string; product_name_snapshot: string; quantity: number }) => (
+                      <p key={item.id}>{item.product_name_snapshot} × {item.quantity}</p>
+                    ))}
+                  </div>
+                )}
 
+                {/* Payment status badge */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">💰</span>
+                  <Badge
+                    variant={order.payment_status === "paid" ? "default" : "secondary"}
+                    className="text-xs"
+                  >
+                    {PAYMENT_LABELS[order.payment_status]}
+                  </Badge>
+                  {order.total_amount ? (
+                    <span className="text-sm font-medium text-foreground">₮{Number(order.total_amount).toLocaleString()}</span>
+                  ) : null}
+                  {order.payment_status === "paid" && (
+                    <span className="text-[10px] text-muted-foreground">✓ Жолооч баталсан</span>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Call button */}
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <button
-                        className="flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium disabled:opacity-50"
-                        disabled={updateStatus.isPending}
-                      >
-                        <XCircle className="h-5 w-5" />
-                        <span className="text-xs">Цуцлах</span>
+                      <button className="flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
+                        <Phone className="h-4 w-4" />
+                        <span className="text-xs">Залгах</span>
+                        <span className="text-[10px] opacity-80 leading-tight">{order.phone}</span>
                       </button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Цуцлах уу?</AlertDialogTitle>
+                        <AlertDialogTitle>Залгах уу?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          {order.customer_name} — {order.internal_order_number} захиалгыг цуцлах гэж байна.
+                          {order.customer_name} — {order.phone} руу залгах гэж байна.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Үгүй</AlertDialogCancel>
-                        <AlertDialogAction
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          onClick={() => handleMarkCancelled(order.id)}
-                        >
-                          Тийм
+                        <AlertDialogAction asChild>
+                          <a href={`tel:${order.phone}`}>Тийм</a>
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
+
+                  {/* Payment collected button */}
+                  {order.payment_status !== "paid" ? (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button
+                          className="flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 rounded-lg bg-amber-600 text-white text-sm font-medium disabled:opacity-50"
+                          disabled={updatePayment.isPending}
+                        >
+                          <Banknote className="h-5 w-5" />
+                          <span className="text-xs">Төлбөр авсан</span>
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Төлбөр төлүүлсэн үү?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {order.customer_name} — ₮{Number(order.total_amount || 0).toLocaleString()} төлбөр авсан гэж тэмдэглэнэ. Итгэлтэй байна уу?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Үгүй</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleMarkPaid(order.id)}>Тийм</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  ) : (
+                    <div />
+                  )}
                 </div>
-              )}
-            </div>
+
+                {/* Fulfillment actions */}
+                {order.fulfillment_status !== "delivered" && order.fulfillment_status !== "cancelled" && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button
+                          className="flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-medium disabled:opacity-50"
+                          disabled={updateStatus.isPending}
+                        >
+                          <CheckCircle2 className="h-5 w-5" />
+                          <span className="text-xs">Хүргэсэн</span>
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        {order.external_order_id?.startsWith("OMH-") ? (
+                          <>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Төлбөрийг газар дээр авсан уу?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {order.customer_name} — {order.internal_order_number} захиалгыг хүргэсэн гэж тэмдэглэнэ.
+                                Төлбөрийг бэлнээр газар дээр авсан бол "Тийм", аваагүй бол "Үгүй" сонгоно уу.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Болих</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                                onClick={() => handleMarkDelivered(order.id, false)}
+                              >
+                                Үгүй
+                              </AlertDialogAction>
+                              <AlertDialogAction onClick={() => handleMarkDelivered(order.id, true)}>
+                                Тийм
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </>
+                        ) : (
+                          <>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Хүргэсэн гэж тэмдэглэх үү?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {order.customer_name} — {order.internal_order_number} захиалгыг хүргэсэн гэж тэмдэглэнэ.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Үгүй</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleMarkDelivered(order.id)}>Тийм</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </>
+                        )}
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button
+                          className="flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium disabled:opacity-50"
+                          disabled={updateStatus.isPending}
+                        >
+                          <XCircle className="h-5 w-5" />
+                          <span className="text-xs">Цуцлах</span>
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Цуцлах уу?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {order.customer_name} — {order.internal_order_number} захиалгыг цуцлах гэж байна.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Үгүй</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => handleMarkCancelled(order.id)}
+                          >
+                            Тийм
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
           ))}
         </div>
       )}
