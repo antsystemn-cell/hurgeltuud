@@ -138,7 +138,7 @@ export default function OrderList() {
 
             {drivers?.map((d) => (
               <SelectItem key={d.user_id} value={d.user_id}>
-                {d.profiles.full_name}
+                {d.profiles.full_name} — {d.profiles.phone}
               </SelectItem>
             ))}
           </SelectContent>
@@ -245,7 +245,7 @@ export default function OrderList() {
                         <SelectContent>
                           {drivers?.map((d) => (
                             <SelectItem key={d.user_id} value={d.user_id}>
-                              {d.profiles.full_name}
+                              {d.profiles.full_name} — {d.profiles.phone}
                             </SelectItem>
                           ))}
                         </SelectContent>
