@@ -184,7 +184,7 @@ export default function OperatorDashboard() {
                         <SelectContent>
                           {drivers?.map((d) => (
                             <SelectItem key={d.user_id} value={d.user_id}>
-                              {d.profiles.full_name}
+                              {d.profiles.full_name} — {d.profiles.phone}
                             </SelectItem>
                           ))}
                         </SelectContent>
