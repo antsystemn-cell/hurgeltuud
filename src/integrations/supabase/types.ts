@@ -550,6 +550,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_drivers_safe: {
+        Args: never
+        Returns: {
+          active: boolean
+          full_name: string
+          phone: string
+          user_id: string
+        }[]
+      }
       get_source_systems_safe: {
         Args: never
         Returns: {

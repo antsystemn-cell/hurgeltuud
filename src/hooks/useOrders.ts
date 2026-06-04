@@ -279,22 +279,11 @@ export function useDrivers() {
   return useQuery({
     queryKey: ["drivers"],
     queryFn: async () => {
-      // Get driver role entries
-      const { data: roles, error: rolesErr } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "driver");
-      if (rolesErr) throw rolesErr;
-      if (!roles?.length) return [];
+      // Use security definer RPC so operators (who can't read user_roles directly) can also load drivers
+      const { data, error } = await supabase.rpc("get_drivers_safe");
+      if (error) throw error;
 
-      const driverIds = roles.map((r) => r.user_id);
-      const { data: profiles, error: profErr } = await supabase
-        .from("profiles")
-        .select("user_id, full_name, phone, active")
-        .in("user_id", driverIds);
-      if (profErr) throw profErr;
-
-      return (profiles || []).map((p) => ({
+      return (data || []).map((p) => ({
         user_id: p.user_id,
         profiles: { full_name: p.full_name, phone: p.phone, active: p.active },
       }));
