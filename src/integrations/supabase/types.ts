@@ -617,7 +617,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      resolve_partner_session: { Args: { _token: string }; Returns: string }
     }
     Enums: {
       app_role: "main_admin" | "operator" | "driver"
