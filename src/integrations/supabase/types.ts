@@ -243,6 +243,41 @@ export type Database = {
           },
         ]
       }
+      partner_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          last_used_at: string | null
+          source_system_id: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          last_used_at?: string | null
+          source_system_id: string
+          token: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_used_at?: string | null
+          source_system_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_sessions_source_system_id_fkey"
+            columns: ["source_system_id"]
+            isOneToOne: false
+            referencedRelation: "source_systems"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active: boolean
@@ -582,6 +617,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      resolve_partner_session: { Args: { _token: string }; Returns: string }
     }
     Enums: {
       app_role: "main_admin" | "operator" | "driver"
