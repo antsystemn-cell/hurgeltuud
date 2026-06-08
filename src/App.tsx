@@ -21,6 +21,7 @@ import Reports from "./pages/admin/Reports";
 import PwaSettings from "./pages/admin/PwaSettings";
 import WalletManagement from "./pages/admin/WalletManagement";
 import OnlyHubIntegration from "./pages/admin/OnlyHubIntegration";
+import PartnerPortal from "./pages/portal/PartnerPortal";
 import NotFound from "./pages/NotFound";
 import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
 
@@ -58,6 +59,8 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            {/* Partner portal: embedded by external admin panels via token, no app login required */}
+            <Route path="/portal" element={<PartnerPortal />} />
             <Route path="/" element={<RoleRedirect />} />
 
             {/* Driver */}
