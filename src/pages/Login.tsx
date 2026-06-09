@@ -142,6 +142,14 @@ export default function Login() {
           </Button>
         </form>
 
+        <Link
+          to="/register-driver"
+          className="block w-full text-center py-3 px-4 rounded-xl border border-primary/40 bg-primary/5 text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
+        >
+          Жолоочоор бүртгүүлэх
+        </Link>
+
+
         {showPwaButton && (
           <button
             onClick={handleInstall}
