@@ -5,6 +5,7 @@ import {
   usePortalSession,
   usePortalOrders,
   usePortalDrivers,
+  usePortalMerchants,
   usePortalAssignDriver,
   usePortalUpdateFulfillment,
   usePortalUpdatePayment,
