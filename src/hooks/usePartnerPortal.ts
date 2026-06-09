@@ -21,13 +21,15 @@ export function usePortalSession(token: string) {
   });
 }
 
-export function usePortalOrders(token: string, filters: { status?: string; search?: string }) {
+export function usePortalOrders(token: string, filters: { status?: string; search?: string; merchant_code?: string; driver_id?: string }) {
   return useQuery({
     queryKey: ["portal", "orders", token, filters],
     queryFn: async () => {
       const res = await callPortal<{ orders: any[] }>(token, "list_orders", {
         status: filters.status && filters.status !== "all" ? filters.status : undefined,
         search: filters.search || undefined,
+        merchant_code: filters.merchant_code && filters.merchant_code !== "all" ? filters.merchant_code : undefined,
+        driver_id: filters.driver_id && filters.driver_id !== "all" ? filters.driver_id : undefined,
       });
       return res.orders || [];
     },
@@ -41,6 +43,17 @@ export function usePortalDrivers(token: string) {
     queryFn: async () => {
       const res = await callPortal<{ drivers: any[] }>(token, "list_drivers");
       return res.drivers || [];
+    },
+    enabled: !!token,
+  });
+}
+
+export function usePortalMerchants(token: string) {
+  return useQuery({
+    queryKey: ["portal", "merchants", token],
+    queryFn: async () => {
+      const res = await callPortal<{ merchants: any[] }>(token, "list_merchants");
+      return res.merchants || [];
     },
     enabled: !!token,
   });

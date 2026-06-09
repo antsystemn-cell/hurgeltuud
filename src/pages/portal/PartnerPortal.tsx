@@ -5,6 +5,7 @@ import {
   usePortalSession,
   usePortalOrders,
   usePortalDrivers,
+  usePortalMerchants,
   usePortalAssignDriver,
   usePortalUpdateFulfillment,
   usePortalUpdatePayment,
@@ -70,10 +71,18 @@ export default function PartnerPortal() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [merchantFilter, setMerchantFilter] = useState<string>("all");
+  const [driverFilter, setDriverFilter] = useState<string>("all");
 
   const session = usePortalSession(token);
-  const { data: orders, isLoading } = usePortalOrders(token, { status: statusFilter, search });
+  const { data: orders, isLoading } = usePortalOrders(token, {
+    status: statusFilter,
+    search,
+    merchant_code: merchantFilter,
+    driver_id: driverFilter,
+  });
   const { data: drivers } = usePortalDrivers(token);
+  const { data: merchants } = usePortalMerchants(token);
   const assignDriver = usePortalAssignDriver(token);
   const updateStatus = usePortalUpdateFulfillment(token);
   const updatePayment = usePortalUpdatePayment(token);
@@ -120,6 +129,26 @@ export default function PartnerPortal() {
               <SelectItem value="all">Бүх статус</SelectItem>
               {Object.entries(FULFILLMENT_LABELS).map(([k, v]) => (
                 <SelectItem key={k} value={k}>{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {!!merchants?.length && (
+            <Select value={merchantFilter} onValueChange={setMerchantFilter}>
+              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Дэлгүүр" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Бүх дэлгүүр</SelectItem>
+                {merchants.map((m: any) => <SelectItem key={m.code} value={m.code}>{m.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+          <Select value={driverFilter} onValueChange={setDriverFilter}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Жолооч" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Бүх жолооч</SelectItem>
+              {drivers?.map((d: any) => (
+                <SelectItem key={d.user_id} value={d.user_id}>
+                  {d.full_name} — {d.phone}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
