@@ -71,10 +71,18 @@ export default function PartnerPortal() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [merchantFilter, setMerchantFilter] = useState<string>("all");
+  const [driverFilter, setDriverFilter] = useState<string>("all");
 
   const session = usePortalSession(token);
-  const { data: orders, isLoading } = usePortalOrders(token, { status: statusFilter, search });
+  const { data: orders, isLoading } = usePortalOrders(token, {
+    status: statusFilter,
+    search,
+    merchant_code: merchantFilter,
+    driver_id: driverFilter,
+  });
   const { data: drivers } = usePortalDrivers(token);
+  const { data: merchants } = usePortalMerchants(token);
   const assignDriver = usePortalAssignDriver(token);
   const updateStatus = usePortalUpdateFulfillment(token);
   const updatePayment = usePortalUpdatePayment(token);
