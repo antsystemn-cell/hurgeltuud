@@ -81,6 +81,7 @@ serve(async (req) => {
       expires_at: expiresAt,
       portal_url: `${portalBase}/portal?token=${token}`,
       source_system: { name: sourceSystem.name, code: sourceSystem.code },
+      merchant: merchantCode ? { code: merchantCode, name: merchantName } : null,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
