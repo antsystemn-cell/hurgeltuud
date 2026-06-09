@@ -95,6 +95,8 @@ export default function PartnerPortal() {
   }
 
   const sourceName = (session.data as any)?.source_system?.name;
+  const merchantName = (session.data as any)?.merchant?.name;
+  const scopeLabel = merchantName ? `${sourceName ? sourceName + " · " : ""}${merchantName}` : sourceName;
 
   return (
     <div className="min-h-screen bg-background">
@@ -102,7 +104,7 @@ export default function PartnerPortal() {
         <img src={logo} alt="ON Shop" className="h-8 w-8" />
         <div>
           <h1 className="text-base font-semibold text-foreground">Хүргэлт удирдах</h1>
-          {sourceName && <p className="text-xs text-muted-foreground">{sourceName}</p>}
+          {scopeLabel && <p className="text-xs text-muted-foreground">{scopeLabel}</p>}
         </div>
       </header>
 

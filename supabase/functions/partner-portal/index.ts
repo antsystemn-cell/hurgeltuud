@@ -39,7 +39,7 @@ serve(async (req) => {
     // Validate session
     const { data: session } = await supabase
       .from("partner_sessions")
-      .select("id, source_system_id, expires_at")
+      .select("id, source_system_id, merchant_code, merchant_name, expires_at")
       .eq("token", token)
       .maybeSingle();
 
@@ -47,18 +47,22 @@ serve(async (req) => {
       return json({ error: "Invalid or expired session" }, 401);
     }
     const sourceId = session.source_system_id as string;
+    // Optional merchant scope. When set, the session can only see/manage this
+    // one merchant's deliveries inside the source system.
+    const merchantCode = (session.merchant_code ?? null) as string | null;
 
     // Best-effort: mark session usage (non-blocking)
     supabase.from("partner_sessions").update({ last_used_at: new Date().toISOString() }).eq("id", session.id);
 
-    // Helper to confirm an order belongs to this partner before mutating it.
+    // Helper to confirm an order belongs to this partner (and merchant) before mutating it.
     const orderBelongs = async (orderId: string) => {
-      const { data } = await supabase
+      let q = supabase
         .from("orders")
         .select("id")
         .eq("id", orderId)
-        .eq("source_system_id", sourceId)
-        .maybeSingle();
+        .eq("source_system_id", sourceId);
+      if (merchantCode) q = q.eq("merchant_code", merchantCode);
+      const { data } = await q.maybeSingle();
       return !!data;
     };
 
@@ -69,7 +73,12 @@ serve(async (req) => {
           .select("name, code")
           .eq("id", sourceId)
           .maybeSingle();
-        return json({ ok: true, source_system: ss, expires_at: session.expires_at });
+        return json({
+          ok: true,
+          source_system: ss,
+          merchant: merchantCode ? { code: merchantCode, name: session.merchant_name } : null,
+          expires_at: session.expires_at,
+        });
       }
 
       case "list_orders": {
@@ -80,6 +89,7 @@ serve(async (req) => {
           .eq("source_system_id", sourceId)
           .order("created_at", { ascending: false });
 
+        if (merchantCode) q = q.eq("merchant_code", merchantCode);
         if (status && VALID_FULFILLMENT.includes(status)) {
           q = q.eq("fulfillment_status", status);
         }

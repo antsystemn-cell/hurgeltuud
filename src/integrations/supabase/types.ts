@@ -249,6 +249,8 @@ export type Database = {
           expires_at: string
           id: string
           last_used_at: string | null
+          merchant_code: string | null
+          merchant_name: string | null
           source_system_id: string
           token: string
         }
@@ -257,6 +259,8 @@ export type Database = {
           expires_at: string
           id?: string
           last_used_at?: string | null
+          merchant_code?: string | null
+          merchant_name?: string | null
           source_system_id: string
           token: string
         }
@@ -265,6 +269,8 @@ export type Database = {
           expires_at?: string
           id?: string
           last_used_at?: string | null
+          merchant_code?: string | null
+          merchant_name?: string | null
           source_system_id?: string
           token?: string
         }

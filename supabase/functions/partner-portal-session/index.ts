@@ -43,6 +43,15 @@ serve(async (req) => {
       });
     }
 
+    // Optional merchant scope: when the partner's admin panel opens the portal
+    // for ONE specific shop/merchant, it passes merchant_code (and optionally
+    // merchant_name). The resulting session can then ONLY see/manage that
+    // merchant's deliveries. When omitted, the session covers the whole source
+    // system (platform-wide admin view).
+    const reqBody = await req.json().catch(() => ({}));
+    const merchantCode = (reqBody?.merchant_code ?? null) as string | null;
+    const merchantName = (reqBody?.merchant_name ?? null) as string | null;
+
     // Generate a cryptographically random session token (valid 12h).
     const tokenBytes = new Uint8Array(32);
     crypto.getRandomValues(tokenBytes);
@@ -52,6 +61,8 @@ serve(async (req) => {
     const { error: insertError } = await supabase.from("partner_sessions").insert({
       token,
       source_system_id: sourceSystem.id,
+      merchant_code: merchantCode,
+      merchant_name: merchantName,
       expires_at: expiresAt,
     });
 
@@ -70,6 +81,7 @@ serve(async (req) => {
       expires_at: expiresAt,
       portal_url: `${portalBase}/portal?token=${token}`,
       source_system: { name: sourceSystem.name, code: sourceSystem.code },
+      merchant: merchantCode ? { code: merchantCode, name: merchantName } : null,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
