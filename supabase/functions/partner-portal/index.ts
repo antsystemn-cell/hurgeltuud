@@ -82,14 +82,19 @@ serve(async (req) => {
       }
 
       case "list_orders": {
-        const { status, search } = body as { status?: string; search?: string };
+        const { status, search, merchant_code, driver_id } = body as {
+          status?: string; search?: string; merchant_code?: string; driver_id?: string;
+        };
         let q = supabase
           .from("orders")
           .select("*, order_items(*)")
           .eq("source_system_id", sourceId)
           .order("created_at", { ascending: false });
 
+        // Session merchant scope always wins; otherwise honor the optional filter.
         if (merchantCode) q = q.eq("merchant_code", merchantCode);
+        else if (merchant_code) q = q.eq("merchant_code", merchant_code);
+        if (driver_id) q = q.eq("assigned_driver_user_id", driver_id);
         if (status && VALID_FULFILLMENT.includes(status)) {
           q = q.eq("fulfillment_status", status);
         }
@@ -101,6 +106,26 @@ serve(async (req) => {
         const { data, error } = await q;
         if (error) return json({ error: error.message }, 500);
         return json({ ok: true, orders: data });
+      }
+
+      case "list_merchants": {
+        // Distinct merchants seen inside this source system (skip when the
+        // session is already locked to a single merchant).
+        if (merchantCode) return json({ ok: true, merchants: [] });
+        const { data, error } = await supabase
+          .from("orders")
+          .select("merchant_code, merchant_name")
+          .eq("source_system_id", sourceId)
+          .not("merchant_code", "is", null);
+        if (error) return json({ error: error.message }, 500);
+        const map = new Map<string, string>();
+        for (const row of data || []) {
+          const code = (row as any).merchant_code as string | null;
+          if (code && !map.has(code)) map.set(code, ((row as any).merchant_name as string) || code);
+        }
+        const merchants = Array.from(map, ([code, name]) => ({ code, name }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        return json({ ok: true, merchants });
       }
 
       case "list_drivers": {
