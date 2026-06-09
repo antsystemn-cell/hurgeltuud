@@ -73,7 +73,12 @@ serve(async (req) => {
           .select("name, code")
           .eq("id", sourceId)
           .maybeSingle();
-        return json({ ok: true, source_system: ss, expires_at: session.expires_at });
+        return json({
+          ok: true,
+          source_system: ss,
+          merchant: merchantCode ? { code: merchantCode, name: session.merchant_name } : null,
+          expires_at: session.expires_at,
+        });
       }
 
       case "list_orders": {
@@ -84,6 +89,7 @@ serve(async (req) => {
           .eq("source_system_id", sourceId)
           .order("created_at", { ascending: false });
 
+        if (merchantCode) q = q.eq("merchant_code", merchantCode);
         if (status && VALID_FULFILLMENT.includes(status)) {
           q = q.eq("fulfillment_status", status);
         }
