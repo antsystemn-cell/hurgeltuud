@@ -60,6 +60,8 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/register-driver" element={<DriverRegister />} />
+
             {/* Partner portal: embedded by external admin panels via token, no app login required */}
             <Route path="/portal" element={<PartnerPortal />} />
             <Route path="/" element={<RoleRedirect />} />
