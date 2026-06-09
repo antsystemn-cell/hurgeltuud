@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -141,6 +141,14 @@ export default function Login() {
             {loading ? "Нэвтэрч байна..." : "Нэвтрэх"}
           </Button>
         </form>
+
+        <Link
+          to="/register-driver"
+          className="block w-full text-center py-3 px-4 rounded-xl border border-primary/40 bg-primary/5 text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
+        >
+          Жолоочоор бүртгүүлэх
+        </Link>
+
 
         {showPwaButton && (
           <button
