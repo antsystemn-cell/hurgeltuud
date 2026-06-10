@@ -133,13 +133,6 @@ export function useDriverOrders(driverId: string, statusFilter?: string) {
   });
 }
 
-// Fire-and-forget: call webhook-sync edge function (server-side, no client secret exposure)
-function fireShopWebhook(orderId: string) {
-  supabase.functions.invoke("webhook-sync", {
-    body: { order_id: orderId, event_type: "status_changed" },
-  }).catch((err) => console.error("Shop webhook invoke failed:", err));
-}
-
 export function useUpdateOrderStatus() {
   const qc = useQueryClient();
   return useMutation({
@@ -154,35 +147,8 @@ export function useUpdateOrderStatus() {
       userId: string;
       paymentCollectedInCash?: boolean;
     }) => {
-      const updates: {
-        fulfillment_status: FulfillmentStatus;
-        updated_by_user_id: string;
-        phone_confirmed_at?: string;
-        out_for_delivery_at?: string;
-        delivered_at?: string;
-        cancelled_at?: string;
-        payment_collected_in_cash?: boolean;
-      } = {
-        fulfillment_status: status,
-        updated_by_user_id: userId,
-      };
-      if (status === "phone_confirmed") updates.phone_confirmed_at = new Date().toISOString();
-      if (status === "out_for_delivery") updates.out_for_delivery_at = new Date().toISOString();
-      if (status === "delivered") updates.delivered_at = new Date().toISOString();
-      if (status === "cancelled") updates.cancelled_at = new Date().toISOString();
-      if (typeof paymentCollectedInCash === "boolean") {
-        updates.payment_collected_in_cash = paymentCollectedInCash;
-        // If cash was collected on delivery, also mark as paid
-        if (paymentCollectedInCash && status === "delivered") {
-          (updates as Record<string, unknown>).payment_status = "paid";
-        }
-      }
-
-      const { error } = await supabase.from("orders").update(updates).eq("id", orderId);
-      if (error) throw error;
-
-      // Fire-and-forget: sync status to shop / merchant
-      fireShopWebhook(orderId);
+      // Double-submit guard + offline queue handled inside the shared helper.
+      return await applyStatusUpdateResilient({ orderId, status, userId, paymentCollectedInCash });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
   });
