@@ -64,6 +64,7 @@ export function useOrders(filters?: {
       if (error) throw error;
       return data;
     },
+    staleTime: 10000,
   });
 }
 
