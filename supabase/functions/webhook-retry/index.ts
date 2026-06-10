@@ -169,7 +169,11 @@ serve(async (req) => {
         .update({
           last_sync_at: new Date().toISOString(),
           sync_error: success ? null : responseBody,
-          ...(success ? { sync_attempts: 0 } : {}),
+          last_api_error: success ? null : responseBody,
+          ...(success
+            ? { sync_attempts: 0, retry_count: 0 }
+            : { retry_count: newAttemptCount }),
+          ...(manualOrderId ? { manual_retry_at: new Date().toISOString() } : {}),
         })
         .eq("id", order.id);
 
