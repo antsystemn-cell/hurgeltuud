@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
 import {
   Package,
   Truck,
@@ -21,6 +22,7 @@ import {
   Smartphone,
   Wallet,
   Link2,
+  WifiOff,
 } from "lucide-react";
 import { useState } from "react";
 
