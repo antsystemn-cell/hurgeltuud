@@ -6,6 +6,26 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
 };
 
+// CANONICAL cross-system status vocabulary accepted from partners:
+//   new, confirmed, assigned, picked_up, in_transit, delivered, cancelled, failed
+// Mapped to the internal fulfillment_status enum. Internal values are also
+// accepted for backwards compatibility.
+const CANONICAL_TO_INTERNAL: Record<string, string> = {
+  new: "confirmed",
+  confirmed: "confirmed",
+  assigned: "phone_confirmed",
+  picked_up: "out_for_delivery",
+  in_transit: "out_for_delivery",
+  delivered: "delivered",
+  cancelled: "cancelled",
+  failed: "cancelled",
+  // internal pass-through
+  phone_confirmed: "phone_confirmed",
+  out_for_delivery: "out_for_delivery",
+};
+
+const VALID_PAYMENT = ["unpaid", "cash_on_delivery", "paid", "refunded"];
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -40,7 +60,9 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { external_order_id, payment_status, fulfillment_status, note } = body;
+    const { external_order_id, payment_status, note } = body;
+    const event_id: string | undefined = body.event_id;
+    const rawFulfillment: string | undefined = body.fulfillment_status ?? body.status;
 
     if (!external_order_id) {
       return new Response(JSON.stringify({ error: "Missing external_order_id" }), {
@@ -57,19 +79,34 @@ serve(async (req) => {
       });
     }
 
-    // Validate statuses
-    const validFulfillment = ["confirmed", "phone_confirmed", "out_for_delivery", "delivered", "cancelled"];
-    const validPayment = ["unpaid", "cash_on_delivery", "paid", "refunded"];
-
-    if (fulfillment_status && !validFulfillment.includes(fulfillment_status)) {
-      return new Response(JSON.stringify({ error: `Invalid fulfillment_status. Valid: ${validFulfillment.join(", ")}` }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Idempotency: if this event_id was already processed, return early.
+    if (event_id) {
+      const { data: prior } = await supabase
+        .from("webhook_logs")
+        .select("id")
+        .eq("event_id", event_id)
+        .maybeSingle();
+      if (prior) {
+        return new Response(JSON.stringify({ success: true, deduped: true, event_id }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
-    if (payment_status && !validPayment.includes(payment_status)) {
-      return new Response(JSON.stringify({ error: `Invalid payment_status. Valid: ${validPayment.join(", ")}` }), {
+    // Normalize fulfillment_status through the canonical map
+    let fulfillment_status: string | undefined;
+    if (rawFulfillment) {
+      fulfillment_status = CANONICAL_TO_INTERNAL[rawFulfillment];
+      if (!fulfillment_status) {
+        return new Response(JSON.stringify({
+          error: `Invalid status "${rawFulfillment}". Valid: ${Object.keys(CANONICAL_TO_INTERNAL).join(", ")}`,
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
+    if (payment_status && !VALID_PAYMENT.includes(payment_status)) {
+      return new Response(JSON.stringify({ error: `Invalid payment_status. Valid: ${VALID_PAYMENT.join(", ")}` }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -97,15 +134,17 @@ serve(async (req) => {
       });
     }
 
+    // Guard: never reopen a terminal order via inbound sync (idempotent + loop safe)
+    const isTerminal = order.fulfillment_status === "delivered" || order.fulfillment_status === "cancelled";
+
     // Build update payload - only update fields that changed
     const updates: Record<string, unknown> = {};
     const changes: Record<string, { old: string; new: string }> = {};
 
-    if (fulfillment_status && fulfillment_status !== order.fulfillment_status) {
+    if (fulfillment_status && fulfillment_status !== order.fulfillment_status && !isTerminal) {
       updates.fulfillment_status = fulfillment_status;
       changes.fulfillment_status = { old: order.fulfillment_status, new: fulfillment_status };
 
-      // Set timestamps
       if (fulfillment_status === "phone_confirmed") updates.phone_confirmed_at = new Date().toISOString();
       if (fulfillment_status === "out_for_delivery") updates.out_for_delivery_at = new Date().toISOString();
       if (fulfillment_status === "delivered") updates.delivered_at = new Date().toISOString();
@@ -121,10 +160,22 @@ serve(async (req) => {
       updates.delivery_note = note;
     }
 
+    // Record the inbound event for idempotency + audit (even no-ops)
+    const logEventId = event_id ?? `inbound:${order.id}:${fulfillment_status ?? "_"}:${payment_status ?? "_"}:${Date.now()}`;
+    await supabase.from("webhook_logs").upsert({
+      source_system_id: sourceSystem.id,
+      order_id: order.id,
+      event_type: "inbound_status_update",
+      event_id: logEventId,
+      payload: body,
+      success: true,
+      attempt_count: 1,
+    }, { onConflict: "event_id", ignoreDuplicates: true });
+
     if (Object.keys(changes).length === 0 && !note) {
       return new Response(JSON.stringify({
         success: true,
-        message: "No changes needed, statuses already match",
+        message: isTerminal ? "Order is terminal, ignored" : "No changes needed",
         order_id: order.id,
       }), {
         status: 200,
@@ -150,11 +201,7 @@ serve(async (req) => {
       action: "inbound_status_sync",
       entity_type: "order",
       entity_id: order.id,
-      details: {
-        source_system: sourceSystem.code,
-        external_order_id,
-        changes,
-      },
+      details: { source_system: sourceSystem.code, external_order_id, changes },
     });
 
     // Notify the assigned driver when the order is cancelled from the merchant side
