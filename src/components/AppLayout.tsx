@@ -162,9 +162,22 @@ export function AppLayout({ children }: { children: ReactNode }) {
           </div>
         )}
 
+        {(!online || pending > 0) && (
+          <div className={cn(
+            "flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-medium",
+            online ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" : "bg-destructive/15 text-destructive"
+          )}>
+            <WifiOff className="h-3.5 w-3.5" />
+            {online
+              ? `${pending} шинэчлэл сүлжээ сэргэхэд автоматаар илгээгдэнэ...`
+              : "Холболт тасарсан — үйлдлүүд хадгалагдаж, сүлжээ сэргэхэд илгээгдэнэ"}
+          </div>
+        )}
+
         <main className="flex-1 overflow-y-auto">
           {children}
         </main>
+
       </div>
     </div>
   );
