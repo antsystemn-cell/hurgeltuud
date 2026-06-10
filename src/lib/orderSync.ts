@@ -65,7 +65,7 @@ export async function applyStatusUpdate(input: StatusUpdateInput): Promise<void>
   if (inFlight.has(key)) throw new DuplicateActionError();
   inFlight.add(key);
   try {
-    const { error } = await supabase.from("orders").update(buildStatusUpdates(input)).eq("id", input.orderId);
+    const { error } = await supabase.from("orders").update(buildStatusUpdates(input) as never).eq("id", input.orderId);
     if (error) throw error;
     fireShopWebhook(input.orderId);
   } finally {
