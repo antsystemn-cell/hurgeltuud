@@ -130,6 +130,7 @@ export function useDriverOrders(driverId: string, statusFilter?: string) {
       return data;
     },
     enabled: !!driverId,
+    staleTime: 15000,
   });
 }
 
