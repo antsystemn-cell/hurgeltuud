@@ -202,14 +202,8 @@ export function useUpdatePaymentStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ orderId, status, userId }: { orderId: string; status: PaymentStatus; userId: string }) => {
-      const { error } = await supabase
-        .from("orders")
-        .update({ payment_status: status, updated_by_user_id: userId })
-        .eq("id", orderId);
-      if (error) throw error;
-
-      // Fire-and-forget: sync status to shop
-      fireShopWebhook(orderId);
+      // Double-submit guard + offline queue handled inside the shared helper.
+      return await applyPaymentUpdateResilient({ orderId, status, userId });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
   });
