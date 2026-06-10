@@ -198,6 +198,20 @@ export default function OrderList() {
                         {order.total_amount && (
                           <p className="text-sm font-medium text-foreground">₮{Number(order.total_amount).toLocaleString()}</p>
                         )}
+                        {(order as any).sync_error && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-[11px] gap-1 border-destructive/40 text-destructive hover:text-destructive"
+                            onClick={() => retrySync.mutate(order.id)}
+                            disabled={retrySync.isPending}
+                            title={(order as any).sync_error}
+                          >
+                            <AlertTriangle className="h-3 w-3" />
+                            Sync алдаа
+                            <RefreshCw className={`h-3 w-3 ${retrySync.isPending ? "animate-spin" : ""}`} />
+                          </Button>
+                        )}
                       </div>
                     </div>
                     {/* Address - full width */}
