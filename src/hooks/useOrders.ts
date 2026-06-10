@@ -85,6 +85,7 @@ export function useMerchants() {
       }
       return Array.from(map, ([code, name]) => ({ code, name }));
     },
+    staleTime: 60000,
   });
 }
 
@@ -101,6 +102,7 @@ export function useActiveOrders() {
       if (error) throw error;
       return data;
     },
+    staleTime: 15000,
   });
 }
 
