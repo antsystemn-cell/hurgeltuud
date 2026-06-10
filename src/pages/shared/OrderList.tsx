@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { useOrders, useDrivers, useSourceSystems, useMerchants, useUpdateOrderStatus, useAssignDriver, useUpdatePaymentStatus, useDeleteOrder, useUpdateOrderAddress, FULFILLMENT_LABELS, PAYMENT_LABELS, type FulfillmentStatus, type PaymentStatus } from "@/hooks/useOrders";
+import { useOrders, useDrivers, useSourceSystems, useMerchants, useUpdateOrderStatus, useAssignDriver, useUpdatePaymentStatus, useDeleteOrder, useUpdateOrderAddress, useManualRetrySync, FULFILLMENT_LABELS, PAYMENT_LABELS, type FulfillmentStatus, type PaymentStatus } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Phone, Trash2, Printer, Pencil, Check, X, Store } from "lucide-react";
+import { Search, Phone, Trash2, Printer, Pencil, Check, X, Store, RefreshCw, AlertTriangle } from "lucide-react";
 import { STATUS_BORDER_COLORS, STATUS_BG_COLORS, formatOrderDate } from "@/lib/orderHelpers";
 
 
@@ -96,6 +96,7 @@ export default function OrderList() {
   const assignDriver = useAssignDriver();
   const updatePayment = useUpdatePaymentStatus();
   const deleteOrder = useDeleteOrder();
+  const retrySync = useManualRetrySync();
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto">
@@ -196,6 +197,20 @@ export default function OrderList() {
                         </Badge>
                         {order.total_amount && (
                           <p className="text-sm font-medium text-foreground">₮{Number(order.total_amount).toLocaleString()}</p>
+                        )}
+                        {(order as any).sync_error && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-[11px] gap-1 border-destructive/40 text-destructive hover:text-destructive"
+                            onClick={() => retrySync.mutate(order.id)}
+                            disabled={retrySync.isPending}
+                            title={(order as any).sync_error}
+                          >
+                            <AlertTriangle className="h-3 w-3" />
+                            Sync алдаа
+                            <RefreshCw className={`h-3 w-3 ${retrySync.isPending ? "animate-spin" : ""}`} />
+                          </Button>
                         )}
                       </div>
                     </div>

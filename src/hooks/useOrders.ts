@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { applyStatusUpdateResilient, applyPaymentUpdateResilient } from "@/lib/orderSync";
 
 type Order = Database["public"]["Tables"]["orders"]["Row"];
 type OrderInsert = Database["public"]["Tables"]["orders"]["Insert"];
@@ -63,6 +64,7 @@ export function useOrders(filters?: {
       if (error) throw error;
       return data;
     },
+    staleTime: 10000,
   });
 }
 
@@ -84,6 +86,7 @@ export function useMerchants() {
       }
       return Array.from(map, ([code, name]) => ({ code, name }));
     },
+    staleTime: 60000,
   });
 }
 
@@ -100,6 +103,7 @@ export function useActiveOrders() {
       if (error) throw error;
       return data;
     },
+    staleTime: 15000,
   });
 }
 
@@ -129,14 +133,8 @@ export function useDriverOrders(driverId: string, statusFilter?: string) {
       return data;
     },
     enabled: !!driverId,
+    staleTime: 15000,
   });
-}
-
-// Fire-and-forget: call webhook-sync edge function (server-side, no client secret exposure)
-function fireShopWebhook(orderId: string) {
-  supabase.functions.invoke("webhook-sync", {
-    body: { order_id: orderId, event_type: "status_changed" },
-  }).catch((err) => console.error("Shop webhook invoke failed:", err));
 }
 
 export function useUpdateOrderStatus() {
@@ -153,35 +151,8 @@ export function useUpdateOrderStatus() {
       userId: string;
       paymentCollectedInCash?: boolean;
     }) => {
-      const updates: {
-        fulfillment_status: FulfillmentStatus;
-        updated_by_user_id: string;
-        phone_confirmed_at?: string;
-        out_for_delivery_at?: string;
-        delivered_at?: string;
-        cancelled_at?: string;
-        payment_collected_in_cash?: boolean;
-      } = {
-        fulfillment_status: status,
-        updated_by_user_id: userId,
-      };
-      if (status === "phone_confirmed") updates.phone_confirmed_at = new Date().toISOString();
-      if (status === "out_for_delivery") updates.out_for_delivery_at = new Date().toISOString();
-      if (status === "delivered") updates.delivered_at = new Date().toISOString();
-      if (status === "cancelled") updates.cancelled_at = new Date().toISOString();
-      if (typeof paymentCollectedInCash === "boolean") {
-        updates.payment_collected_in_cash = paymentCollectedInCash;
-        // If cash was collected on delivery, also mark as paid
-        if (paymentCollectedInCash && status === "delivered") {
-          (updates as Record<string, unknown>).payment_status = "paid";
-        }
-      }
-
-      const { error } = await supabase.from("orders").update(updates).eq("id", orderId);
-      if (error) throw error;
-
-      // Fire-and-forget: sync status to shop / merchant
-      fireShopWebhook(orderId);
+      // Double-submit guard + offline queue handled inside the shared helper.
+      return await applyStatusUpdateResilient({ orderId, status, userId, paymentCollectedInCash });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
   });
@@ -235,18 +206,28 @@ export function useUpdatePaymentStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ orderId, status, userId }: { orderId: string; status: PaymentStatus; userId: string }) => {
-      const { error } = await supabase
-        .from("orders")
-        .update({ payment_status: status, updated_by_user_id: userId })
-        .eq("id", orderId);
-      if (error) throw error;
-
-      // Fire-and-forget: sync status to shop
-      fireShopWebhook(orderId);
+      // Double-submit guard + offline queue handled inside the shared helper.
+      return await applyPaymentUpdateResilient({ orderId, status, userId });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
   });
 }
+
+// Manually retry a stuck outbound sync for one order (admin action).
+export function useManualRetrySync() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      const { error } = await supabase.functions.invoke("webhook-retry", {
+        body: { order_id: orderId },
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
+  });
+}
+
+
 
 export function useDeleteOrder() {
   const qc = useQueryClient();

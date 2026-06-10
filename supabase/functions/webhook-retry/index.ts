@@ -38,14 +38,29 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Find failed webhook logs that haven't exceeded max retries
-    const { data: failedLogs, error: logsError } = await supabase
+    // Optional single-order manual retry: { order_id }
+    let manualOrderId: string | null = null;
+    if (req.method === "POST") {
+      try {
+        const body = await req.json();
+        manualOrderId = body?.order_id ?? null;
+      } catch (_) { /* no body = batch cron run */ }
+    }
+
+    // Find failed webhook logs that haven't exceeded max retries.
+    // Manual retries bypass the attempt cap for the requested order.
+    let query = supabase
       .from("webhook_logs")
       .select("*, orders(*, source_systems(*))")
       .eq("success", false)
-      .lt("attempt_count", MAX_RETRIES)
       .order("created_at", { ascending: true })
-      .limit(20);
+      .limit(manualOrderId ? 50 : 20);
+    if (manualOrderId) {
+      query = query.eq("order_id", manualOrderId);
+    } else {
+      query = query.lt("attempt_count", MAX_RETRIES);
+    }
+    const { data: failedLogs, error: logsError } = await query;
 
     if (logsError) throw logsError;
 
@@ -154,7 +169,11 @@ serve(async (req) => {
         .update({
           last_sync_at: new Date().toISOString(),
           sync_error: success ? null : responseBody,
-          ...(success ? { sync_attempts: 0 } : {}),
+          last_api_error: success ? null : responseBody,
+          ...(success
+            ? { sync_attempts: 0, retry_count: 0 }
+            : { retry_count: newAttemptCount }),
+          ...(manualOrderId ? { manual_retry_at: new Date().toISOString() } : {}),
         })
         .eq("id", order.id);
 

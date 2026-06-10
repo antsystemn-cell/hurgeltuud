@@ -6,7 +6,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Map internal fulfillment_status to standardized cross-system status
+// CANONICAL status vocabulary shared by every integration:
+//   new, confirmed, assigned, picked_up, in_transit, delivered, cancelled, failed
+// Single source of truth — used for both the standardized field and the
+// Only Hub fulfillment_status so the same internal status never maps two ways.
 function toStandardStatus(internal: string | null | undefined): string {
   switch (internal) {
     case "confirmed": return "confirmed";
@@ -18,16 +21,10 @@ function toStandardStatus(internal: string | null | undefined): string {
   }
 }
 
-// Map internal fulfillment_status to Only Hub fulfillment_status vocabulary
-function toOnlyHubStatus(internal: string | null | undefined): string {
-  switch (internal) {
-    case "confirmed": return "assigned";
-    case "phone_confirmed": return "assigned";
-    case "out_for_delivery": return "in_transit";
-    case "delivered": return "delivered";
-    case "cancelled": return "cancelled";
-    default: return "assigned";
-  }
+// Deterministic event id => identical status changes dedupe to the same id,
+// so duplicate syncs and retries are idempotent on both sides.
+function buildEventId(order: { id: string; fulfillment_status: string | null; payment_status: string | null }): string {
+  return `${order.id}:${order.fulfillment_status ?? "?"}:${order.payment_status ?? "?"}`;
 }
 
 async function markOrderSynced(
@@ -36,20 +33,29 @@ async function markOrderSynced(
   success: boolean,
   errorMsg: string | null,
 ) {
-  const patch: Record<string, unknown> = {
-    last_sync_at: new Date().toISOString(),
-    sync_error: success ? null : errorMsg,
-  };
   if (success) {
-    patch.sync_attempts = 0;
+    await supabase.from("orders").update({
+      last_sync_at: new Date().toISOString(),
+      sync_error: null,
+      last_api_error: null,
+      sync_attempts: 0,
+      retry_count: 0,
+    }).eq("id", orderId);
+    return;
   }
-  await supabase.from("orders").update(patch).eq("id", orderId);
-  if (!success) {
-    // increment via RPC-less approach: re-read then bump
-    const { data } = await supabase.from("orders").select("sync_attempts").eq("id", orderId).single();
-    const attempts = ((data?.sync_attempts as number) ?? 0) + 1;
-    await supabase.from("orders").update({ sync_attempts: attempts }).eq("id", orderId);
-  }
+  // Failure: bump counters atomically-ish (re-read then write)
+  const { data } = await supabase
+    .from("orders")
+    .select("sync_attempts, retry_count")
+    .eq("id", orderId)
+    .single();
+  await supabase.from("orders").update({
+    last_sync_at: new Date().toISOString(),
+    sync_error: errorMsg,
+    last_api_error: errorMsg,
+    sync_attempts: ((data?.sync_attempts as number) ?? 0) + 1,
+    retry_count: ((data?.retry_count as number) ?? 0) + 1,
+  }).eq("id", orderId);
 }
 
 serve(async (req) => {
@@ -126,58 +132,77 @@ serve(async (req) => {
         };
       }
 
-      const omhStatus = toOnlyHubStatus(order.fulfillment_status);
-      const eventId = crypto.randomUUID();
+      const omhStatus = toStandardStatus(order.fulfillment_status);
+      const eventId = buildEventId(order);
 
-      const payload: Record<string, unknown> = {
-        event: "delivery.status_changed",
-        event_id: eventId,
-        external_order_id: order.external_order_id,
-        internal_order_number: order.internal_order_number,
-        fulfillment_status: omhStatus,
-        driver,
-        timestamp: new Date().toISOString(),
-        note: order.delivery_note || null,
-      };
-      // payment_collected_in_cash is required on delivered
-      if (omhStatus === "delivered") {
-        payload.payment_collected_in_cash = order.payment_collected_in_cash === true;
+      // Idempotency: if this exact status change was already delivered to
+      // Only Hub, don't send it again (prevents duplicate processing & loops).
+      const { data: priorLog } = await supabase
+        .from("webhook_logs")
+        .select("id, success")
+        .eq("event_id", eventId)
+        .eq("success", true)
+        .maybeSingle();
+
+      if (priorLog) {
+        anySuccess = true; // already synced — treat as success
+      } else {
+        const isCompletion = omhStatus === "delivered" || omhStatus === "cancelled";
+        const payload: Record<string, unknown> = {
+          // delivered/cancelled is the trigger for Only Hub to run SMS / QPay /
+          // payment collection. Delivery Hub stays logistics-only.
+          event: isCompletion ? "delivery.completed" : "delivery.status_changed",
+          event_id: eventId,
+          external_order_id: order.external_order_id,
+          internal_order_number: order.internal_order_number,
+          fulfillment_status: omhStatus,
+          status: omhStatus,
+          driver,
+          timestamp: new Date().toISOString(),
+          note: order.delivery_note || null,
+        };
+        // payment_collected_in_cash is a logistics flag reported on delivered;
+        // Only Hub remains the payment authority.
+        if (omhStatus === "delivered") {
+          payload.payment_collected_in_cash = order.payment_collected_in_cash === true;
+        }
+
+        let omhSuccess = false;
+        let omhStatusCode = 0;
+        let omhBody = "";
+        try {
+          const res = await fetch(onlyHubUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(onlyHubKey ? { "x-api-key": onlyHubKey } : {}),
+            },
+            body: JSON.stringify(payload),
+          });
+          omhStatusCode = res.status;
+          omhBody = await res.text();
+          omhSuccess = res.ok;
+        } catch (err) {
+          omhBody = err instanceof Error ? err.message : "Fetch failed";
+        }
+
+        if (omhSuccess) anySuccess = true;
+        else lastError = `omh: ${omhStatusCode} ${omhBody}`;
+
+        // Upsert on event_id so a duplicate concurrent sync can't double-log.
+        await supabase.from("webhook_logs").upsert({
+          source_system_id: sourceSystem?.id ?? null,
+          order_id: order.id,
+          event_type: "omh_status_sync",
+          event_id: eventId,
+          payload,
+          response_status: omhStatusCode,
+          response_body: omhBody,
+          success: omhSuccess,
+          attempt_count: 1,
+          next_retry_at: omhSuccess ? null : new Date(Date.now() + 60 * 1000).toISOString(),
+        }, { onConflict: "event_id", ignoreDuplicates: false });
       }
-
-      let omhSuccess = false;
-      let omhStatusCode = 0;
-      let omhBody = "";
-      try {
-        const res = await fetch(onlyHubUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(onlyHubKey ? { "x-api-key": onlyHubKey } : {}),
-          },
-          body: JSON.stringify(payload),
-        });
-        omhStatusCode = res.status;
-        omhBody = await res.text();
-        omhSuccess = res.ok;
-      } catch (err) {
-        omhBody = err instanceof Error ? err.message : "Fetch failed";
-      }
-
-      if (omhSuccess) anySuccess = true;
-      else lastError = `omh: ${omhStatusCode} ${omhBody}`;
-
-      await supabase.from("webhook_logs").insert({
-        source_system_id: sourceSystem?.id ?? null,
-        order_id: order.id,
-        event_type: "omh_status_sync",
-        event_id: eventId,
-        payload,
-        response_status: omhStatusCode,
-        response_body: omhBody,
-        success: omhSuccess,
-        attempt_count: 1,
-        next_retry_at: omhSuccess ? null : new Date(Date.now() + 60 * 1000).toISOString(),
-      });
     }
 
 
