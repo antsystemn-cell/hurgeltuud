@@ -209,6 +209,22 @@ export function useUpdatePaymentStatus() {
   });
 }
 
+// Manually retry a stuck outbound sync for one order (admin action).
+export function useManualRetrySync() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      const { error } = await supabase.functions.invoke("webhook-retry", {
+        body: { order_id: orderId },
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
+  });
+}
+
+
+
 export function useDeleteOrder() {
   const qc = useQueryClient();
   return useMutation({
