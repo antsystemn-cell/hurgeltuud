@@ -64,8 +64,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { online, pending } = useOfflineSync();
 
   const items = role ? navByRole[role] || [] : [];
+
 
   const handleSignOut = async () => {
     await signOut();
