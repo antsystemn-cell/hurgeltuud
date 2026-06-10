@@ -132,58 +132,77 @@ serve(async (req) => {
         };
       }
 
-      const omhStatus = toOnlyHubStatus(order.fulfillment_status);
-      const eventId = crypto.randomUUID();
+      const omhStatus = toStandardStatus(order.fulfillment_status);
+      const eventId = buildEventId(order);
 
-      const payload: Record<string, unknown> = {
-        event: "delivery.status_changed",
-        event_id: eventId,
-        external_order_id: order.external_order_id,
-        internal_order_number: order.internal_order_number,
-        fulfillment_status: omhStatus,
-        driver,
-        timestamp: new Date().toISOString(),
-        note: order.delivery_note || null,
-      };
-      // payment_collected_in_cash is required on delivered
-      if (omhStatus === "delivered") {
-        payload.payment_collected_in_cash = order.payment_collected_in_cash === true;
+      // Idempotency: if this exact status change was already delivered to
+      // Only Hub, don't send it again (prevents duplicate processing & loops).
+      const { data: priorLog } = await supabase
+        .from("webhook_logs")
+        .select("id, success")
+        .eq("event_id", eventId)
+        .eq("success", true)
+        .maybeSingle();
+
+      if (priorLog) {
+        anySuccess = true; // already synced — treat as success
+      } else {
+        const isCompletion = omhStatus === "delivered" || omhStatus === "cancelled";
+        const payload: Record<string, unknown> = {
+          // delivered/cancelled is the trigger for Only Hub to run SMS / QPay /
+          // payment collection. Delivery Hub stays logistics-only.
+          event: isCompletion ? "delivery.completed" : "delivery.status_changed",
+          event_id: eventId,
+          external_order_id: order.external_order_id,
+          internal_order_number: order.internal_order_number,
+          fulfillment_status: omhStatus,
+          status: omhStatus,
+          driver,
+          timestamp: new Date().toISOString(),
+          note: order.delivery_note || null,
+        };
+        // payment_collected_in_cash is a logistics flag reported on delivered;
+        // Only Hub remains the payment authority.
+        if (omhStatus === "delivered") {
+          payload.payment_collected_in_cash = order.payment_collected_in_cash === true;
+        }
+
+        let omhSuccess = false;
+        let omhStatusCode = 0;
+        let omhBody = "";
+        try {
+          const res = await fetch(onlyHubUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(onlyHubKey ? { "x-api-key": onlyHubKey } : {}),
+            },
+            body: JSON.stringify(payload),
+          });
+          omhStatusCode = res.status;
+          omhBody = await res.text();
+          omhSuccess = res.ok;
+        } catch (err) {
+          omhBody = err instanceof Error ? err.message : "Fetch failed";
+        }
+
+        if (omhSuccess) anySuccess = true;
+        else lastError = `omh: ${omhStatusCode} ${omhBody}`;
+
+        // Upsert on event_id so a duplicate concurrent sync can't double-log.
+        await supabase.from("webhook_logs").upsert({
+          source_system_id: sourceSystem?.id ?? null,
+          order_id: order.id,
+          event_type: "omh_status_sync",
+          event_id: eventId,
+          payload,
+          response_status: omhStatusCode,
+          response_body: omhBody,
+          success: omhSuccess,
+          attempt_count: 1,
+          next_retry_at: omhSuccess ? null : new Date(Date.now() + 60 * 1000).toISOString(),
+        }, { onConflict: "event_id", ignoreDuplicates: false });
       }
-
-      let omhSuccess = false;
-      let omhStatusCode = 0;
-      let omhBody = "";
-      try {
-        const res = await fetch(onlyHubUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(onlyHubKey ? { "x-api-key": onlyHubKey } : {}),
-          },
-          body: JSON.stringify(payload),
-        });
-        omhStatusCode = res.status;
-        omhBody = await res.text();
-        omhSuccess = res.ok;
-      } catch (err) {
-        omhBody = err instanceof Error ? err.message : "Fetch failed";
-      }
-
-      if (omhSuccess) anySuccess = true;
-      else lastError = `omh: ${omhStatusCode} ${omhBody}`;
-
-      await supabase.from("webhook_logs").insert({
-        source_system_id: sourceSystem?.id ?? null,
-        order_id: order.id,
-        event_type: "omh_status_sync",
-        event_id: eventId,
-        payload,
-        response_status: omhStatusCode,
-        response_body: omhBody,
-        success: omhSuccess,
-        attempt_count: 1,
-        next_retry_at: omhSuccess ? null : new Date(Date.now() + 60 * 1000).toISOString(),
-      });
     }
 
 
