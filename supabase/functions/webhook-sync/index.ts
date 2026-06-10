@@ -6,7 +6,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Map internal fulfillment_status to standardized cross-system status
+// CANONICAL status vocabulary shared by every integration:
+//   new, confirmed, assigned, picked_up, in_transit, delivered, cancelled, failed
+// Single source of truth — used for both the standardized field and the
+// Only Hub fulfillment_status so the same internal status never maps two ways.
 function toStandardStatus(internal: string | null | undefined): string {
   switch (internal) {
     case "confirmed": return "confirmed";
@@ -18,16 +21,10 @@ function toStandardStatus(internal: string | null | undefined): string {
   }
 }
 
-// Map internal fulfillment_status to Only Hub fulfillment_status vocabulary
-function toOnlyHubStatus(internal: string | null | undefined): string {
-  switch (internal) {
-    case "confirmed": return "assigned";
-    case "phone_confirmed": return "assigned";
-    case "out_for_delivery": return "in_transit";
-    case "delivered": return "delivered";
-    case "cancelled": return "cancelled";
-    default: return "assigned";
-  }
+// Deterministic event id => identical status changes dedupe to the same id,
+// so duplicate syncs and retries are idempotent on both sides.
+function buildEventId(order: { id: string; fulfillment_status: string | null; payment_status: string | null }): string {
+  return `${order.id}:${order.fulfillment_status ?? "?"}:${order.payment_status ?? "?"}`;
 }
 
 async function markOrderSynced(
@@ -36,20 +33,29 @@ async function markOrderSynced(
   success: boolean,
   errorMsg: string | null,
 ) {
-  const patch: Record<string, unknown> = {
-    last_sync_at: new Date().toISOString(),
-    sync_error: success ? null : errorMsg,
-  };
   if (success) {
-    patch.sync_attempts = 0;
+    await supabase.from("orders").update({
+      last_sync_at: new Date().toISOString(),
+      sync_error: null,
+      last_api_error: null,
+      sync_attempts: 0,
+      retry_count: 0,
+    }).eq("id", orderId);
+    return;
   }
-  await supabase.from("orders").update(patch).eq("id", orderId);
-  if (!success) {
-    // increment via RPC-less approach: re-read then bump
-    const { data } = await supabase.from("orders").select("sync_attempts").eq("id", orderId).single();
-    const attempts = ((data?.sync_attempts as number) ?? 0) + 1;
-    await supabase.from("orders").update({ sync_attempts: attempts }).eq("id", orderId);
-  }
+  // Failure: bump counters atomically-ish (re-read then write)
+  const { data } = await supabase
+    .from("orders")
+    .select("sync_attempts, retry_count")
+    .eq("id", orderId)
+    .single();
+  await supabase.from("orders").update({
+    last_sync_at: new Date().toISOString(),
+    sync_error: errorMsg,
+    last_api_error: errorMsg,
+    sync_attempts: ((data?.sync_attempts as number) ?? 0) + 1,
+    retry_count: ((data?.retry_count as number) ?? 0) + 1,
+  }).eq("id", orderId);
 }
 
 serve(async (req) => {
