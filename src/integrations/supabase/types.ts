@@ -139,7 +139,9 @@ export type Database = {
           idempotency_key: string | null
           internal_note: string | null
           internal_order_number: string
+          last_api_error: string | null
           last_sync_at: string | null
+          manual_retry_at: string | null
           merchant_code: string | null
           merchant_name: string | null
           out_for_delivery_at: string | null
@@ -148,6 +150,7 @@ export type Database = {
           payment_status: Database["public"]["Enums"]["payment_status"]
           phone: string
           phone_confirmed_at: string | null
+          retry_count: number
           source_channel: string | null
           source_system_id: string | null
           subtotal: number | null
@@ -177,7 +180,9 @@ export type Database = {
           idempotency_key?: string | null
           internal_note?: string | null
           internal_order_number: string
+          last_api_error?: string | null
           last_sync_at?: string | null
+          manual_retry_at?: string | null
           merchant_code?: string | null
           merchant_name?: string | null
           out_for_delivery_at?: string | null
@@ -186,6 +191,7 @@ export type Database = {
           payment_status?: Database["public"]["Enums"]["payment_status"]
           phone: string
           phone_confirmed_at?: string | null
+          retry_count?: number
           source_channel?: string | null
           source_system_id?: string | null
           subtotal?: number | null
@@ -215,7 +221,9 @@ export type Database = {
           idempotency_key?: string | null
           internal_note?: string | null
           internal_order_number?: string
+          last_api_error?: string | null
           last_sync_at?: string | null
+          manual_retry_at?: string | null
           merchant_code?: string | null
           merchant_name?: string | null
           out_for_delivery_at?: string | null
@@ -224,6 +232,7 @@ export type Database = {
           payment_status?: Database["public"]["Enums"]["payment_status"]
           phone?: string
           phone_confirmed_at?: string | null
+          retry_count?: number
           source_channel?: string | null
           source_system_id?: string | null
           subtotal?: number | null
