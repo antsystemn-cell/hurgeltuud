@@ -635,6 +635,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      request_withdrawal: {
+        Args: {
+          _amount: number
+          _bank_account?: string
+          _bank_name?: string
+          _note?: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "main_admin" | "operator" | "driver"

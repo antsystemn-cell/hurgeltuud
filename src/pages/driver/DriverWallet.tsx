@@ -69,8 +69,9 @@ export default function DriverWallet() {
           toast({ title: "Хүсэлт илгээгдлээ" });
           setWithdrawAmount("");
         },
-        onError: () => {
-          toast({ title: "Алдаа гарлаа", variant: "destructive" });
+        onError: (err: unknown) => {
+          const message = err instanceof Error ? err.message : "Дахин оролдоно уу";
+          toast({ title: "Алдаа гарлаа", description: message, variant: "destructive" });
         },
       }
     );
