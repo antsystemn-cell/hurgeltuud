@@ -38,12 +38,9 @@ function buildStatusUpdates(input: StatusUpdateInput): Record<string, unknown> {
   if (input.status === "out_for_delivery") updates.out_for_delivery_at = new Date().toISOString();
   if (input.status === "delivered") updates.delivered_at = new Date().toISOString();
   if (input.status === "cancelled") updates.cancelled_at = new Date().toISOString();
-  if (typeof input.paymentCollectedInCash === "boolean") {
-    updates.payment_collected_in_cash = input.paymentCollectedInCash;
-    if (input.paymentCollectedInCash && input.status === "delivered") {
-      updates.payment_status = "paid";
-    }
-  }
+  // NOTE: Marking an order "delivered" must NEVER change payment_status.
+  // Payment is collected/confirmed separately via the dedicated "Төлбөр авсан"
+  // button (applyPaymentUpdate). Hub stays logistics-only; Only Hub owns payments.
   return updates;
 }
 
