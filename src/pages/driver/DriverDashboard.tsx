@@ -61,9 +61,9 @@ export default function DriverDashboard() {
     if (!user) return;
     updatePayment.mutate({ orderId, status: "paid", userId: user.id });
   };
-  const handleMarkDelivered = (orderId: string, paymentCollectedInCash?: boolean) => {
+  const handleMarkDelivered = (orderId: string) => {
     if (!user) return;
-    updateStatus.mutate({ orderId, status: "delivered", userId: user.id, paymentCollectedInCash });
+    updateStatus.mutate({ orderId, status: "delivered", userId: user.id });
   };
 
   const handleMarkCancelled = (orderId: string) => {
