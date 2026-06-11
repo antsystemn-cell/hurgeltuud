@@ -99,32 +99,29 @@ export function useCreateWithdrawalRequest() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
-      walletId,
-      driverUserId,
       amount,
       bankName,
       bankAccount,
       note,
     }: {
-      walletId: string;
-      driverUserId: string;
+      walletId?: string;
+      driverUserId?: string;
       amount: number;
       bankName?: string;
       bankAccount?: string;
       note?: string;
     }) => {
-      const { error } = await supabase.from("withdrawal_requests").insert({
-        wallet_id: walletId,
-        driver_user_id: driverUserId,
-        amount,
-        bank_name: bankName || null,
-        bank_account: bankAccount || null,
-        note: note || null,
+      const { error } = await supabase.rpc("request_withdrawal", {
+        _amount: amount,
+        _bank_name: bankName || null,
+        _bank_account: bankAccount || null,
+        _note: note || null,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["withdrawal_requests"] });
+      qc.invalidateQueries({ queryKey: ["driver_wallet"] });
     },
   });
 }
