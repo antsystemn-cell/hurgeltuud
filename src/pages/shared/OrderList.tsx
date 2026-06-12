@@ -101,6 +101,8 @@ export default function OrderList() {
   const updatePayment = useUpdatePaymentStatus();
   const deleteOrder = useDeleteOrder();
   const retrySync = useManualRetrySync();
+  const updateAddress = useUpdateOrderAddress();
+
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto">
