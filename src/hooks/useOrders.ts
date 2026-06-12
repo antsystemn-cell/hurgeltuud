@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
-import { applyStatusUpdateResilient, applyPaymentUpdateResilient } from "@/lib/orderSync";
+import { applyStatusUpdateResilient, applyPaymentUpdateResilient, fireShopWebhook } from "@/lib/orderSync";
 
 type Order = Database["public"]["Tables"]["orders"]["Row"];
 type OrderInsert = Database["public"]["Tables"]["orders"]["Insert"];
@@ -249,6 +249,7 @@ export function useUpdateOrderAddress() {
         .update({ district, address_text: addressText, updated_by_user_id: userId })
         .eq("id", orderId);
       if (error) throw error;
+      fireShopWebhook(orderId, "address_changed");
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
   });
