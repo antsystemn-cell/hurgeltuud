@@ -160,14 +160,16 @@ export default function DriverDashboard() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredOrders.map((order, index) => (
+          {filteredOrders.map((order, index) => {
+            const store = getStoreInfo(order);
+            return (
             <Collapsible key={order.id} className="bg-card border border-border rounded-xl">
               {/* Compact summary row — always visible, click to expand */}
               <CollapsibleTrigger className="w-full p-4 flex items-start gap-3 text-left [&[data-state=open]>svg.chevron]:rotate-180">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
                   {index + 1}
                 </span>
-                <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex-1 min-w-0 space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-medium text-foreground truncate">{order.customer_name}</p>
                     <Badge
@@ -180,6 +182,16 @@ export default function DriverDashboard() {
                       {FULFILLMENT_LABELS[order.fulfillment_status]}
                     </Badge>
                   </div>
+                  {/* Store badge */}
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold",
+                      store.badgeClass
+                    )}
+                  >
+                    <Store className="h-3 w-3" />
+                    {store.name}
+                  </span>
                   <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <Phone className="h-3.5 w-3.5 shrink-0" />
                     {order.phone}
