@@ -369,7 +369,8 @@ export default function DriverDashboard() {
                 )}
               </CollapsibleContent>
             </Collapsible>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
