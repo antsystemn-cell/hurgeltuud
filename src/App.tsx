@@ -61,6 +61,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/register-driver" element={<DriverRegister />} />
 
             {/* Partner portal: embedded by external admin panels via token, no app login required */}
