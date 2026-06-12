@@ -109,6 +109,8 @@ serve(async (req) => {
           status: standardStatus,
           fulfillment_status: order.fulfillment_status,
           payment_status: order.payment_status,
+          district: order.district || undefined,
+          address_text: order.address_text || undefined,
           note: order.delivery_note || undefined,
           updated_at: new Date().toISOString(),
         };
@@ -126,6 +128,8 @@ serve(async (req) => {
           status: standardStatus,
           fulfillment_status: order.fulfillment_status,
           payment_status: order.payment_status,
+          district: order.district || undefined,
+          address_text: order.address_text || undefined,
           timestamp: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
