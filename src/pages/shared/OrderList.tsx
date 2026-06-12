@@ -272,7 +272,7 @@ export default function OrderList() {
                         </SelectContent>
                       </Select>
                       <Select
-                        value={order.district || ""}
+                        value={order.district || detectDistrict(order.address_text) || ""}
                         onValueChange={(val) => user && updateAddress.mutate({ orderId: order.id, district: val, addressText: order.address_text || "", userId: user.id })}
                       >
                         <SelectTrigger className="w-[120px] h-9 text-xs"><SelectValue placeholder="Дүүрэг" /></SelectTrigger>
