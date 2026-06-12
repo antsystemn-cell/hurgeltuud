@@ -35,7 +35,7 @@ function EditableAddress({ order, userId }: { order: any; userId: string }) {
   };
 
   if (!editing) {
-    const fullAddress = [order.district, order.address_text].filter(Boolean).join(" — ");
+    const fullAddress = [order.district || detectDistrict(order.address_text), order.address_text].filter(Boolean).join(" — ");
     return (
       <div className="flex items-start gap-1 group">
         <p className="text-sm text-muted-foreground break-words">
