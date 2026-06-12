@@ -228,10 +228,24 @@ export default function DriverDashboard() {
 
                 {/* Items */}
                 {order.order_items && order.order_items.length > 0 && (
-                  <div className="text-sm text-muted-foreground">
-                    {order.order_items.map((item: { id: string; product_name_snapshot: string; quantity: number }) => (
-                      <p key={item.id}>{item.product_name_snapshot} × {item.quantity}</p>
-                    ))}
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
+                    <div className="flex items-center gap-1.5 px-3 py-2 border-b border-primary/15 bg-primary/10">
+                      <Package className="h-4 w-4 text-primary" />
+                      <span className="text-xs font-semibold text-foreground">Захиалсан бараа</span>
+                      <span className="ml-auto text-[11px] font-medium text-primary">
+                        {order.order_items.length} төрөл
+                      </span>
+                    </div>
+                    <ul className="divide-y divide-primary/10">
+                      {order.order_items.map((item: { id: string; product_name_snapshot: string; quantity: number }) => (
+                        <li key={item.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                          <span className="text-sm font-medium text-foreground">{item.product_name_snapshot}</span>
+                          <span className="shrink-0 rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+                            × {item.quantity}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 
