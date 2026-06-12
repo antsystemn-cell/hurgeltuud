@@ -301,7 +301,7 @@ export default function OrderList() {
                               .footer { margin-top: 8px; font-size: 9px; text-align: center; border-top: 1px dashed #000; padding-top: 4px; }
                               .payment-note { font-weight: bold; margin-top: 4px; padding: 2px 4px; border: 1px solid #000; }
                             </style></head><body>
-                            <div class="district">${order.district || "—"}</div>
+                            <div class="district">${order.district || detectDistrict(order.address_text) || "—"}</div>
                             <div>${order.address_text || ""}</div>
                             <div>${order.phone}</div>
                             <div class="items">${items.map((it: any) => `<div>${it.product_name_snapshot} × ${it.quantity}</div>`).join("")}</div>
