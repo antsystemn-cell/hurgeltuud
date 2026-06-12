@@ -8,6 +8,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { ReactNode } from "react";
 
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import DriverRegister from "./pages/DriverRegister";
 import DriverDashboard from "./pages/driver/DriverDashboard";
 import DriverWallet from "./pages/driver/DriverWallet";
