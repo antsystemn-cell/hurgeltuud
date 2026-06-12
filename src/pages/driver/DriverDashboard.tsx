@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
 import { useDriverOrders, useUpdateOrderStatus, useUpdatePaymentStatus, FULFILLMENT_LABELS, PAYMENT_LABELS } from "@/hooks/useOrders";
+import { getStoreInfo } from "@/lib/orderHelpers";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Phone, MapPin, CheckCircle2, XCircle, Banknote, Search, ChevronDown } from "lucide-react";
+import { Phone, MapPin, CheckCircle2, XCircle, Banknote, Search, ChevronDown, Store, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
