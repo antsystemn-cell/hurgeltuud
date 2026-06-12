@@ -120,6 +120,38 @@ export default function DriverDashboard() {
         ))}
       </div>
 
+      {/* Store filter */}
+      {stores.length > 1 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <Store className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <button
+            onClick={() => setStoreFilter("all")}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-colors",
+              storeFilter === "all"
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-card text-muted-foreground border-border"
+            )}
+          >
+            Бүх дэлгүүр
+          </button>
+          {stores.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => setStoreFilter(s.key)}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-colors",
+                storeFilter === s.key
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-card text-muted-foreground border-border"
+              )}
+            >
+              {s.name} <span className="opacity-70">({s.count})</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="text-center py-8 text-muted-foreground">Уншиж байна...</div>
       ) : !filteredOrders.length ? (
