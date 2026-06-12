@@ -8,7 +8,6 @@ export type StatusUpdateInput = {
   orderId: string;
   status: FulfillmentStatus;
   userId: string;
-  paymentCollectedInCash?: boolean;
 };
 
 export type PaymentUpdateInput = {
@@ -167,7 +166,6 @@ export async function flushQueue(): Promise<number> {
           orderId: item.orderId,
           status: item.status,
           userId: item.userId,
-          paymentCollectedInCash: item.paymentCollectedInCash,
         });
       } else {
         await applyPaymentUpdate({ orderId: item.orderId, status: item.status, userId: item.userId });
