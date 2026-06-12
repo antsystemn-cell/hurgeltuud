@@ -10,6 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Search, Phone, Trash2, Printer, Pencil, Check, X, Store, RefreshCw, AlertTriangle } from "lucide-react";
 import { STATUS_BORDER_COLORS, STATUS_BG_COLORS, formatOrderDate } from "@/lib/orderHelpers";
 
+const DISTRICTS = ["БЗД", "БГД", "СХД", "ЧД", "ХУД", "НД"];
+
+
+
 
 function EditableAddress({ order, userId }: { order: any; userId: string }) {
   const [editing, setEditing] = useState(false);
