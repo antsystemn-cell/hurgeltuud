@@ -162,6 +162,7 @@ export default function DriverDashboard() {
         <div className="space-y-3">
           {filteredOrders.map((order, index) => {
             const store = getStoreInfo(order);
+            const district = resolveDistrict(order);
             return (
             <Collapsible key={order.id} className="bg-card border border-border rounded-xl">
               {/* Compact summary row — always visible, click to expand */}
