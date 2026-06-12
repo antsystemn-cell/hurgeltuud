@@ -30,6 +30,7 @@ function isPhoneNumber(value: string): boolean {
 export default function Login() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
