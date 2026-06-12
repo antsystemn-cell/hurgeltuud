@@ -98,11 +98,13 @@ serve(async (req) => {
         targetUrl = onlyHubUrl;
         if (onlyHubKey) headers["x-api-key"] = onlyHubKey;
         payload = (log.payload as Record<string, unknown>) ?? {};
-      } else if ((log.event_type === "shop_status_sync" && isShopOrder && sourceSystem?.api_key) ||
-          (log.event_type === "easy_status_sync" && isEasyOrder && sourceSystem?.api_key)) {
-        targetUrl = isEasyOrder ? EASY_WEBHOOK_URL : SHOP_WEBHOOK_URL;
-        headers["x-api-key"] = sourceSystem.api_key;
-        headers["Authorization"] = `Bearer ${sourceSystem.api_key}`;
+      } else if ((log.event_type === "shop_status_sync" && isShopOrder) ||
+          (log.event_type === "easy_status_sync" && isEasyOrder)) {
+        const outboundKey = sourceSystem?.webhook_secret || sourceSystem?.api_key || null;
+        if (!outboundKey) continue;
+        targetUrl = sourceSystem?.webhook_url || (isEasyOrder ? EASY_WEBHOOK_URL : SHOP_WEBHOOK_URL);
+        headers["x-api-key"] = outboundKey;
+        headers["Authorization"] = `Bearer ${outboundKey}`;
         payload = {
           external_order_id: order.external_order_id,
           delivery_order_id: order.id,
@@ -115,7 +117,7 @@ serve(async (req) => {
           note: order.delivery_note || undefined,
           updated_at: new Date().toISOString(),
         };
-      } else if (sourceSystem?.webhook_url && !isOmhOrder) {
+      } else if (sourceSystem?.webhook_url && !isOmhOrder && !isShopOrder && !isEasyOrder) {
         targetUrl = sourceSystem.webhook_url;
         if (sourceSystem.webhook_secret) {
           headers["X-Webhook-Secret"] = sourceSystem.webhook_secret;
