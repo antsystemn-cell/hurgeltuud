@@ -16,6 +16,32 @@ export const STATUS_BG_COLORS: Record<FulfillmentStatus, string> = {
   cancelled: "bg-red-50 dark:bg-red-950/20",
 };
 
+// ---- Store (source system) badge styling ----
+export type StoreInfo = { key: string; name: string; badgeClass: string };
+
+const STORE_STYLES: Record<string, string> = {
+  shop_only_mn: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900",
+  easyshop_mn: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-900",
+  only_merchants_hub: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900",
+};
+
+const UNKNOWN_STORE_STYLE = "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700";
+
+type StoreOrder = {
+  source_system_id?: string | null;
+  merchant_name?: string | null;
+  source_systems?: { name?: string | null; code?: string | null } | null;
+};
+
+// Derives the store a delivery belongs to. Prefers merchant name, falls back to source system.
+export function getStoreInfo(order: StoreOrder): StoreInfo {
+  const code = order.source_systems?.code || order.source_system_id || "unknown";
+  const sourceName = order.source_systems?.name || "Бусад";
+  const name = order.merchant_name?.trim() || sourceName;
+  const badgeClass = STORE_STYLES[order.source_systems?.code || ""] || UNKNOWN_STORE_STYLE;
+  return { key: code, name, badgeClass };
+}
+
 export function formatOrderDate(dateStr: string): { day: string; month: string; time: string } {
   const d = new Date(dateStr);
   const months = ["1-р сар","2-р сар","3-р сар","4-р сар","5-р сар","6-р сар","7-р сар","8-р сар","9-р сар","10-р сар","11-р сар","12-р сар"];

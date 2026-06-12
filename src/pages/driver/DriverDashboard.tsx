@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
 import { useDriverOrders, useUpdateOrderStatus, useUpdatePaymentStatus, FULFILLMENT_LABELS, PAYMENT_LABELS } from "@/hooks/useOrders";
+import { getStoreInfo } from "@/lib/orderHelpers";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Phone, MapPin, CheckCircle2, XCircle, Banknote, Search, ChevronDown } from "lucide-react";
+import { Phone, MapPin, CheckCircle2, XCircle, Banknote, Search, ChevronDown, Store, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
@@ -33,15 +34,30 @@ export default function DriverDashboard() {
   const { user } = useAuth();
   const [filter, setFilter] = useState<string>("active");
   const [search, setSearch] = useState("");
+  const [storeFilter, setStoreFilter] = useState<string>("all");
   const { data: orders, isLoading } = useDriverOrders(user?.id || "", filter);
   const updateStatus = useUpdateOrderStatus();
   const updatePayment = useUpdatePaymentStatus();
 
+  // Distinct stores present in the loaded orders (for the store filter chips)
+  const stores = useMemo(() => {
+    if (!orders) return [];
+    const map = new Map<string, { key: string; name: string; count: number }>();
+    for (const order of orders) {
+      const info = getStoreInfo(order);
+      const existing = map.get(info.key);
+      if (existing) existing.count += 1;
+      else map.set(info.key, { key: info.key, name: info.name, count: 1 });
+    }
+    return Array.from(map.values());
+  }, [orders]);
+
   const filteredOrders = useMemo(() => {
     if (!orders) return [];
     const term = search.trim().toLowerCase();
-    if (!term) return orders;
     return orders.filter((order) => {
+      if (storeFilter !== "all" && getStoreInfo(order).key !== storeFilter) return false;
+      if (!term) return true;
       const haystack = [
         order.customer_name,
         order.phone,
@@ -55,7 +71,7 @@ export default function DriverDashboard() {
         .toLowerCase();
       return haystack.includes(term);
     });
-  }, [orders, search]);
+  }, [orders, search, storeFilter]);
 
   const handleMarkPaid = (orderId: string) => {
     if (!user) return;
@@ -104,6 +120,38 @@ export default function DriverDashboard() {
         ))}
       </div>
 
+      {/* Store filter */}
+      {stores.length > 1 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <Store className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <button
+            onClick={() => setStoreFilter("all")}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-colors",
+              storeFilter === "all"
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-card text-muted-foreground border-border"
+            )}
+          >
+            Бүх дэлгүүр
+          </button>
+          {stores.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => setStoreFilter(s.key)}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-colors",
+                storeFilter === s.key
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-card text-muted-foreground border-border"
+              )}
+            >
+              {s.name} <span className="opacity-70">({s.count})</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="text-center py-8 text-muted-foreground">Уншиж байна...</div>
       ) : !filteredOrders.length ? (
@@ -112,14 +160,16 @@ export default function DriverDashboard() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredOrders.map((order, index) => (
+          {filteredOrders.map((order, index) => {
+            const store = getStoreInfo(order);
+            return (
             <Collapsible key={order.id} className="bg-card border border-border rounded-xl">
               {/* Compact summary row — always visible, click to expand */}
               <CollapsibleTrigger className="w-full p-4 flex items-start gap-3 text-left [&[data-state=open]>svg.chevron]:rotate-180">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
                   {index + 1}
                 </span>
-                <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex-1 min-w-0 space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-medium text-foreground truncate">{order.customer_name}</p>
                     <Badge
@@ -132,6 +182,16 @@ export default function DriverDashboard() {
                       {FULFILLMENT_LABELS[order.fulfillment_status]}
                     </Badge>
                   </div>
+                  {/* Store badge */}
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold",
+                      store.badgeClass
+                    )}
+                  >
+                    <Store className="h-3 w-3" />
+                    {store.name}
+                  </span>
                   <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <Phone className="h-3.5 w-3.5 shrink-0" />
                     {order.phone}
@@ -168,10 +228,24 @@ export default function DriverDashboard() {
 
                 {/* Items */}
                 {order.order_items && order.order_items.length > 0 && (
-                  <div className="text-sm text-muted-foreground">
-                    {order.order_items.map((item: { id: string; product_name_snapshot: string; quantity: number }) => (
-                      <p key={item.id}>{item.product_name_snapshot} × {item.quantity}</p>
-                    ))}
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
+                    <div className="flex items-center gap-1.5 px-3 py-2 border-b border-primary/15 bg-primary/10">
+                      <Package className="h-4 w-4 text-primary" />
+                      <span className="text-xs font-semibold text-foreground">Захиалсан бараа</span>
+                      <span className="ml-auto text-[11px] font-medium text-primary">
+                        {order.order_items.length} төрөл
+                      </span>
+                    </div>
+                    <ul className="divide-y divide-primary/10">
+                      {order.order_items.map((item: { id: string; product_name_snapshot: string; quantity: number }) => (
+                        <li key={item.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                          <span className="text-sm font-medium text-foreground">{item.product_name_snapshot}</span>
+                          <span className="shrink-0 rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+                            × {item.quantity}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 
@@ -309,7 +383,8 @@ export default function DriverDashboard() {
                 )}
               </CollapsibleContent>
             </Collapsible>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
