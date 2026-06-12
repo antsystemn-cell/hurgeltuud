@@ -54,6 +54,11 @@ export default function CreateOrder() {
     e.preventDefault();
     if (!user) return;
 
+    if (!form.district) {
+      toast.error("Дүүрэг сонгоно уу");
+      return;
+    }
+
     try {
       await createOrder.mutateAsync({
         order: {
