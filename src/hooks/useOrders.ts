@@ -113,7 +113,7 @@ export function useDriverOrders(driverId: string, statusFilter?: string) {
     queryFn: async () => {
       let q = supabase
         .from("orders")
-        .select("*, order_items(*)")
+        .select("*, order_items(*), source_systems(name, code)")
         .eq("assigned_driver_user_id", driverId)
         .order("created_at", { ascending: false });
 
