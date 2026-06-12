@@ -39,11 +39,25 @@ export default function DriverDashboard() {
   const updateStatus = useUpdateOrderStatus();
   const updatePayment = useUpdatePaymentStatus();
 
+  // Distinct stores present in the loaded orders (for the store filter chips)
+  const stores = useMemo(() => {
+    if (!orders) return [];
+    const map = new Map<string, { key: string; name: string; count: number }>();
+    for (const order of orders) {
+      const info = getStoreInfo(order);
+      const existing = map.get(info.key);
+      if (existing) existing.count += 1;
+      else map.set(info.key, { key: info.key, name: info.name, count: 1 });
+    }
+    return Array.from(map.values());
+  }, [orders]);
+
   const filteredOrders = useMemo(() => {
     if (!orders) return [];
     const term = search.trim().toLowerCase();
-    if (!term) return orders;
     return orders.filter((order) => {
+      if (storeFilter !== "all" && getStoreInfo(order).key !== storeFilter) return false;
+      if (!term) return true;
       const haystack = [
         order.customer_name,
         order.phone,
@@ -57,7 +71,7 @@ export default function DriverDashboard() {
         .toLowerCase();
       return haystack.includes(term);
     });
-  }, [orders, search]);
+  }, [orders, search, storeFilter]);
 
   const handleMarkPaid = (orderId: string) => {
     if (!user) return;
