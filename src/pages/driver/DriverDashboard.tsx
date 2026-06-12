@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
 import { useDriverOrders, useUpdateOrderStatus, useUpdatePaymentStatus, FULFILLMENT_LABELS, PAYMENT_LABELS } from "@/hooks/useOrders";
-import { getStoreInfo } from "@/lib/orderHelpers";
+import { getStoreInfo, resolveDistrict } from "@/lib/orderHelpers";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Phone, MapPin, CheckCircle2, XCircle, Banknote, Search, ChevronDown, Store, Package } from "lucide-react";
@@ -162,6 +162,7 @@ export default function DriverDashboard() {
         <div className="space-y-3">
           {filteredOrders.map((order, index) => {
             const store = getStoreInfo(order);
+            const district = resolveDistrict(order);
             return (
             <Collapsible key={order.id} className="bg-card border border-border rounded-xl">
               {/* Compact summary row — always visible, click to expand */}
@@ -196,11 +197,11 @@ export default function DriverDashboard() {
                     <Phone className="h-3.5 w-3.5 shrink-0" />
                     {order.phone}
                   </p>
-                  {(order.district || order.address_text) && (
+                  {(district || order.address_text) && (
                     <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
                       <MapPin className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
                       <span className="truncate">
-                        {[order.district, order.address_text].filter(Boolean).join(", ")}
+                        {[district, order.address_text].filter(Boolean).join(", ")}
                       </span>
                     </p>
                   )}
@@ -213,11 +214,11 @@ export default function DriverDashboard() {
                 <p className="text-xs text-muted-foreground">{order.internal_order_number}</p>
 
                 {/* Full location with note */}
-                {(order.district || order.address_text || order.delivery_note) && (
+                {(district || order.address_text || order.delivery_note) && (
                   <div className="flex items-start gap-2 text-sm rounded-lg bg-secondary/50 p-2.5">
                     <MapPin className="h-4 w-4 mt-0.5 text-primary shrink-0" />
                     <div>
-                      {order.district && <p className="font-medium text-foreground">{order.district}</p>}
+                      {district && <p className="font-medium text-foreground">{district}</p>}
                       {order.address_text && <p className="text-muted-foreground">{order.address_text}</p>}
                       {order.delivery_note && (
                         <p className="text-xs text-muted-foreground mt-1">📝 {order.delivery_note}</p>

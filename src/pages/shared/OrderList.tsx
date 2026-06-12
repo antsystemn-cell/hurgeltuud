@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Search, Phone, Trash2, Printer, Pencil, Check, X, Store, RefreshCw, AlertTriangle } from "lucide-react";
-import { STATUS_BORDER_COLORS, STATUS_BG_COLORS, formatOrderDate } from "@/lib/orderHelpers";
+import { STATUS_BORDER_COLORS, STATUS_BG_COLORS, formatOrderDate, detectDistrict } from "@/lib/orderHelpers";
 
 const DISTRICTS = ["БЗД", "БГД", "СХД", "ЧД", "ХУД", "НД"];
 
@@ -35,7 +35,7 @@ function EditableAddress({ order, userId }: { order: any; userId: string }) {
   };
 
   if (!editing) {
-    const fullAddress = [order.district, order.address_text].filter(Boolean).join(" — ");
+    const fullAddress = [order.district || detectDistrict(order.address_text), order.address_text].filter(Boolean).join(" — ");
     return (
       <div className="flex items-start gap-1 group">
         <p className="text-sm text-muted-foreground break-words">
@@ -272,7 +272,7 @@ export default function OrderList() {
                         </SelectContent>
                       </Select>
                       <Select
-                        value={order.district || ""}
+                        value={order.district || detectDistrict(order.address_text) || ""}
                         onValueChange={(val) => user && updateAddress.mutate({ orderId: order.id, district: val, addressText: order.address_text || "", userId: user.id })}
                       >
                         <SelectTrigger className="w-[120px] h-9 text-xs"><SelectValue placeholder="Дүүрэг" /></SelectTrigger>
@@ -301,7 +301,7 @@ export default function OrderList() {
                               .footer { margin-top: 8px; font-size: 9px; text-align: center; border-top: 1px dashed #000; padding-top: 4px; }
                               .payment-note { font-weight: bold; margin-top: 4px; padding: 2px 4px; border: 1px solid #000; }
                             </style></head><body>
-                            <div class="district">${order.district || "—"}</div>
+                            <div class="district">${order.district || detectDistrict(order.address_text) || "—"}</div>
                             <div>${order.address_text || ""}</div>
                             <div>${order.phone}</div>
                             <div class="items">${items.map((it: any) => `<div>${it.product_name_snapshot} × ${it.quantity}</div>`).join("")}</div>

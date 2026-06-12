@@ -42,6 +42,33 @@ export function getStoreInfo(order: StoreOrder): StoreInfo {
   return { key: code, name, badgeClass };
 }
 
+// ---- District auto-detection ----
+// EasyShop (and some sources) push the district inside the free-text address
+// instead of the dedicated `district` column. We detect it for display so every
+// order shows which district it belongs to. Boundaries handle both Cyrillic & Latin.
+const DISTRICT_PATTERNS: { code: string; tokens: string[] }[] = [
+  { code: "БЗД", tokens: ["бзд", "bzd", "баянзүрх", "bayanzurkh", "bayanzurh"] },
+  { code: "БГД", tokens: ["бгд", "bgd", "баянгол", "bayangol"] },
+  { code: "СХД", tokens: ["схд", "shd", "sxd", "сонгино", "songino"] },
+  { code: "ЧД", tokens: ["чд", "chd", "чингэлтэй", "chingeltei"] },
+  { code: "ХУД", tokens: ["худ", "hud", "xud", "хан-уул", "хануул", "khan-uul", "khan uul"] },
+  { code: "НД", tokens: ["нд", "nd", "налайх", "nalaikh", "nalaih"] },
+];
+
+export function detectDistrict(address?: string | null): string | null {
+  if (!address) return null;
+  for (const { code, tokens } of DISTRICT_PATTERNS) {
+    const re = new RegExp(`(^|[^a-zа-яё])(${tokens.join("|")})([^a-zа-яё]|$)`, "i");
+    if (re.test(address)) return code;
+  }
+  return null;
+}
+
+// Returns the explicit district, falling back to one detected from the address.
+export function resolveDistrict(order: { district?: string | null; address_text?: string | null }): string | null {
+  return order.district?.trim() || detectDistrict(order.address_text);
+}
+
 export function formatOrderDate(dateStr: string): { day: string; month: string; time: string } {
   const d = new Date(dateStr);
   const months = ["1-р сар","2-р сар","3-р сар","4-р сар","5-р сар","6-р сар","7-р сар","8-р сар","9-р сар","10-р сар","11-р сар","12-р сар"];
