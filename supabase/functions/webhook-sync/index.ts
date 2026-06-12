@@ -232,6 +232,7 @@ serve(async (req) => {
           headers: {
             "Content-Type": "application/json",
             "x-api-key": sourceSystem.api_key,
+            "Authorization": `Bearer ${sourceSystem.api_key}`,
           },
           body: JSON.stringify(payload),
         });
@@ -283,6 +284,7 @@ serve(async (req) => {
           headers: {
             "Content-Type": "application/json",
             "x-api-key": sourceSystem.api_key,
+            "Authorization": `Bearer ${sourceSystem.api_key}`,
           },
           body: JSON.stringify(payload),
         });
