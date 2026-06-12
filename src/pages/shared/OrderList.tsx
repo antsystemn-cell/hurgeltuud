@@ -10,6 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Search, Phone, Trash2, Printer, Pencil, Check, X, Store, RefreshCw, AlertTriangle } from "lucide-react";
 import { STATUS_BORDER_COLORS, STATUS_BG_COLORS, formatOrderDate } from "@/lib/orderHelpers";
 
+const DISTRICTS = ["БЗД", "БГД", "СХД", "ЧД", "ХУД", "НД"];
+
+
+
 
 function EditableAddress({ order, userId }: { order: any; userId: string }) {
   const [editing, setEditing] = useState(false);
@@ -97,6 +101,8 @@ export default function OrderList() {
   const updatePayment = useUpdatePaymentStatus();
   const deleteOrder = useDeleteOrder();
   const retrySync = useManualRetrySync();
+  const updateAddress = useUpdateOrderAddress();
+
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto">
@@ -262,6 +268,17 @@ export default function OrderList() {
                             <SelectItem key={d.user_id} value={d.user_id}>
                               {d.profiles.full_name} — {d.profiles.phone}
                             </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        value={order.district || ""}
+                        onValueChange={(val) => user && updateAddress.mutate({ orderId: order.id, district: val, addressText: order.address_text || "", userId: user.id })}
+                      >
+                        <SelectTrigger className="w-[120px] h-9 text-xs"><SelectValue placeholder="Дүүрэг" /></SelectTrigger>
+                        <SelectContent>
+                          {DISTRICTS.map((d) => (
+                            <SelectItem key={d} value={d}>{d}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
