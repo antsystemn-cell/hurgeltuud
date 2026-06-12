@@ -22,9 +22,9 @@ export type PaymentUpdateInput = {
 const inFlight = new Set<string>();
 
 // ---- Outbound sync (server-side; no secrets in the browser) ----
-export function fireShopWebhook(orderId: string) {
+export function fireShopWebhook(orderId: string, eventType = "status_changed") {
   supabase.functions
-    .invoke("webhook-sync", { body: { order_id: orderId, event_type: "status_changed" } })
+    .invoke("webhook-sync", { body: { order_id: orderId, event_type: eventType } })
     .catch((err) => console.error("Shop webhook invoke failed:", err));
 }
 
