@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
 
     if (profileError || !profile) {
       return new Response(JSON.stringify({ error: "Энэ дугаартай хэрэглэгч олдсонгүй" }), {
-        status: 404,
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
 
     if (userError || !userData?.user?.email) {
       return new Response(JSON.stringify({ error: "Хэрэглэгчийн мэдээлэл олдсонгүй" }), {
-        status: 404,
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
 
       if (signInError) {
         return new Response(JSON.stringify({ error: "Нууц үг буруу байна" }), {
-          status: 401,
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
