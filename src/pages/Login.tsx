@@ -35,6 +35,29 @@ export default function Login() {
   const { signIn } = useAuth();
   const navigate = useNavigate();
 
+  // Forgot password
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMsg, setResetMsg] = useState("");
+  const [resetErr, setResetErr] = useState("");
+
+  const handleReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetErr("");
+    setResetMsg("");
+    setResetLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setResetLoading(false);
+    if (error) {
+      setResetErr(error.message);
+    } else {
+      setResetMsg("Нууц үг сэргээх холбоосыг имэйл хаягаар тань илгээлээ.");
+    }
+  };
+
   // PWA install prompt
   const { data: pwaSettings } = usePwaSettings();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
