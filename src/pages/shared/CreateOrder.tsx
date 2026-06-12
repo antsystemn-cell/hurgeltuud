@@ -125,10 +125,20 @@ export default function CreateOrder() {
               <Label>Нэмэлт утас</Label>
               <Input value={form.alternate_phone} onChange={(e) => setForm({ ...form, alternate_phone: e.target.value })} />
             </div>
-            <div className="space-y-1.5">
-              <Label>Дүүрэг</Label>
-              <Input value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value })} />
-            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Дүүрэг *</Label>
+            <Select value={form.district} onValueChange={(v) => setForm({ ...form, district: v })}>
+              <SelectTrigger><SelectValue placeholder="Дүүрэг сонгох" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="БЗД">БЗД</SelectItem>
+                <SelectItem value="БГД">БГД</SelectItem>
+                <SelectItem value="СХД">СХД</SelectItem>
+                <SelectItem value="ЧД">ЧД</SelectItem>
+                <SelectItem value="ХУД">ХУД</SelectItem>
+                <SelectItem value="НД">НД</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label>Хаяг</Label>
