@@ -102,6 +102,7 @@ serve(async (req) => {
           (log.event_type === "easy_status_sync" && isEasyOrder && sourceSystem?.api_key)) {
         targetUrl = isEasyOrder ? EASY_WEBHOOK_URL : SHOP_WEBHOOK_URL;
         headers["x-api-key"] = sourceSystem.api_key;
+        headers["Authorization"] = `Bearer ${sourceSystem.api_key}`;
         payload = {
           external_order_id: order.external_order_id,
           delivery_order_id: order.id,
