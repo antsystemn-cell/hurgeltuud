@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Search, Phone, Trash2, Printer, Pencil, Check, X, Store, RefreshCw, AlertTriangle } from "lucide-react";
-import { STATUS_BORDER_COLORS, STATUS_BG_COLORS, formatOrderDate } from "@/lib/orderHelpers";
+import { STATUS_BORDER_COLORS, STATUS_BG_COLORS, formatOrderDate, detectDistrict } from "@/lib/orderHelpers";
 
 const DISTRICTS = ["БЗД", "БГД", "СХД", "ЧД", "ХУД", "НД"];
 
