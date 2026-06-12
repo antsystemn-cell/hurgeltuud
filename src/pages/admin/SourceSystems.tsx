@@ -21,6 +21,7 @@ export default function SourceSystemsPage() {
   });
 
   const [form, setForm] = useState({ name: "", code: "", webhook_url: "", webhook_secret: "", notes: "" });
+  const [editingSecrets, setEditingSecrets] = useState<Record<string, { webhook_url: string; webhook_secret: string }>>({});
 
   const createSystem = useMutation({
     mutationFn: async () => {
@@ -50,6 +51,26 @@ export default function SourceSystemsPage() {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["source_systems"] }),
+  });
+
+  const updateWebhookSettings = useMutation({
+    mutationFn: async ({ id, webhook_url, webhook_secret }: { id: string; webhook_url: string; webhook_secret: string }) => {
+      const { error } = await supabase
+        .from("source_systems")
+        .update({ webhook_url: webhook_url || null, webhook_secret: webhook_secret || null })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      toast.success("Webhook тохиргоо хадгалагдлаа");
+      setEditingSecrets((prev) => {
+        const next = { ...prev };
+        delete next[vars.id];
+        return next;
+      });
+      qc.invalidateQueries({ queryKey: ["source_systems"] });
+    },
+    onError: (e) => toast.error(e.message),
   });
 
   return (
@@ -105,6 +126,51 @@ export default function SourceSystemsPage() {
                 </p>
               )}
               {s.webhook_url && <p className="text-xs text-muted-foreground">Webhook: {s.webhook_url}</p>}
+              {editingSecrets[s.id] ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                  <Input
+                    placeholder="Outbound Webhook URL"
+                    value={editingSecrets[s.id].webhook_url}
+                    onChange={(e) => setEditingSecrets({ ...editingSecrets, [s.id]: { ...editingSecrets[s.id], webhook_url: e.target.value } })}
+                  />
+                  <Input
+                    placeholder="Outbound Secret / Token"
+                    value={editingSecrets[s.id].webhook_secret}
+                    onChange={(e) => setEditingSecrets({ ...editingSecrets, [s.id]: { ...editingSecrets[s.id], webhook_secret: e.target.value } })}
+                  />
+                  <div className="sm:col-span-2 flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => updateWebhookSettings.mutate({ id: s.id, ...editingSecrets[s.id] })}
+                      disabled={updateWebhookSettings.isPending}
+                    >
+                      Хадгалах
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setEditingSecrets((prev) => {
+                        const next = { ...prev };
+                        delete next[s.id];
+                        return next;
+                      })}
+                    >
+                      Болих
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setEditingSecrets({
+                    ...editingSecrets,
+                    [s.id]: { webhook_url: s.webhook_url || "", webhook_secret: "" },
+                  })}
+                >
+                  Webhook тохируулах
+                </Button>
+              )}
             </div>
           ))}
         </div>

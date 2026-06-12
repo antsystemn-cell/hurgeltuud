@@ -206,8 +206,14 @@ serve(async (req) => {
     }
 
 
-    // If it's a SHOP- order, send to the shop webhook endpoint
-    if (isShopOrder && sourceSystem?.api_key) {
+    // If it's a SHOP- order, send to the shop webhook endpoint.
+    // Prefer webhook_secret/webhook_url for outbound sync; api_key is primarily inbound.
+    const shopOutboundKey = sourceSystem?.webhook_secret || sourceSystem?.api_key || null;
+    const easyOutboundKey = sourceSystem?.webhook_secret || sourceSystem?.api_key || null;
+    const shopWebhookUrl = sourceSystem?.webhook_url || SHOP_WEBHOOK_URL;
+    const easyWebhookUrl = sourceSystem?.webhook_url || EASY_WEBHOOK_URL;
+
+    if (isShopOrder && shopOutboundKey) {
       anyAttempt = true;
       let shopSuccess = false;
       let shopStatus = 0;
@@ -220,16 +226,19 @@ serve(async (req) => {
         status: standardStatus,
         fulfillment_status: order.fulfillment_status,
         payment_status: order.payment_status,
+        district: order.district || undefined,
+        address_text: order.address_text || undefined,
         note: order.delivery_note || undefined,
         updated_at: new Date().toISOString(),
       };
 
       try {
-        const res = await fetch(SHOP_WEBHOOK_URL, {
+        const res = await fetch(shopWebhookUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-api-key": sourceSystem.api_key,
+            "x-api-key": shopOutboundKey,
+            "Authorization": `Bearer ${shopOutboundKey}`,
           },
           body: JSON.stringify(payload),
         });
@@ -256,7 +265,7 @@ serve(async (req) => {
     }
 
     // If it's an EASY- order, send to the Easyshop webhook endpoint
-    if (isEasyOrder && sourceSystem?.api_key) {
+    if (isEasyOrder && easyOutboundKey) {
       anyAttempt = true;
       let easySuccess = false;
       let easyStatus = 0;
@@ -269,16 +278,19 @@ serve(async (req) => {
         status: standardStatus,
         fulfillment_status: order.fulfillment_status,
         payment_status: order.payment_status,
+        district: order.district || undefined,
+        address_text: order.address_text || undefined,
         note: order.delivery_note || undefined,
         updated_at: new Date().toISOString(),
       };
 
       try {
-        const res = await fetch(EASY_WEBHOOK_URL, {
+        const res = await fetch(easyWebhookUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-api-key": sourceSystem.api_key,
+            "x-api-key": easyOutboundKey,
+            "Authorization": `Bearer ${easyOutboundKey}`,
           },
           body: JSON.stringify(payload),
         });
@@ -306,7 +318,7 @@ serve(async (req) => {
 
     // Also send to source system's own webhook_url if configured.
     // OMH orders are already handled by the dedicated Only Hub branch above.
-    if (sourceSystem?.webhook_url && !isOmhOrder) {
+    if (sourceSystem?.webhook_url && !isOmhOrder && !isShopOrder && !isEasyOrder) {
       anyAttempt = true;
       const payload = {
         event: event_type,
@@ -317,6 +329,8 @@ serve(async (req) => {
         status: standardStatus,
         fulfillment_status: order.fulfillment_status,
         payment_status: order.payment_status,
+        district: order.district || undefined,
+        address_text: order.address_text || undefined,
         timestamp: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };

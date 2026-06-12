@@ -6,6 +6,39 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
 };
 
+const DISTRICT_PATTERNS: { code: string; tokens: string[] }[] = [
+  { code: "БЗД", tokens: ["бзд", "bzd", "баянзүрх", "bayanzurkh", "bayanzurh"] },
+  { code: "БГД", tokens: ["бгд", "bgd", "баянгол", "bayangol"] },
+  { code: "СХД", tokens: ["схд", "shd", "sxd", "сонгино", "songino"] },
+  { code: "ЧД", tokens: ["чд", "chd", "чингэлтэй", "chingeltei"] },
+  { code: "ХУД", tokens: ["худ", "hud", "xud", "хан-уул", "хануул", "khan-uul", "khan uul", "яармаг", "yarmag"] },
+  { code: "НД", tokens: ["нд", "nd", "налайх", "nalaikh", "nalaih"] },
+];
+
+function normalizeDistrict(input?: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const value = input.trim();
+  if (!value) return null;
+  for (const { code, tokens } of DISTRICT_PATTERNS) {
+    const re = new RegExp(`(^|[^a-zа-яё])(${tokens.join("|")})([^a-zа-яё]|$)`, "i");
+    if (re.test(value)) return code;
+  }
+  return null;
+}
+
+function extractAddressText(body: Record<string, unknown>): string | null {
+  const candidates = [body.address_text, body.address, body.shipping_address, body.delivery_address, body.customer_address];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+    if (candidate && typeof candidate === "object") {
+      const objectAddress = candidate as Record<string, unknown>;
+      const text = objectAddress.address_text || objectAddress.address || objectAddress.full_address || objectAddress.street;
+      if (typeof text === "string" && text.trim()) return text.trim();
+    }
+  }
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -73,6 +106,9 @@ serve(async (req) => {
       });
     }
 
+    const addressText = extractAddressText(body);
+    const district = normalizeDistrict(body.district) || normalizeDistrict(addressText);
+
     // Create order
     const { data: order, error: orderError } = await supabase
       .from("orders")
@@ -88,8 +124,8 @@ serve(async (req) => {
         customer_name: body.customer_name,
         phone: body.phone,
         alternate_phone: body.alternate_phone || null,
-        district: body.district || null,
-        address_text: body.address_text || null,
+        district,
+        address_text: addressText,
         delivery_note: body.delivery_note || null,
         payment_method: body.payment_method || null,
         payment_status: body.payment_status || "unpaid",
