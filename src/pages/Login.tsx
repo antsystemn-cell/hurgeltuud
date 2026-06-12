@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Download } from "lucide-react";
+import { Download, Eye, EyeOff } from "lucide-react";
 import { usePwaSettings } from "@/hooks/usePwaSettings";
 import logo from "@/assets/logo.png";
 
