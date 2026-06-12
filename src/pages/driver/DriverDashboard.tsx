@@ -197,11 +197,11 @@ export default function DriverDashboard() {
                     <Phone className="h-3.5 w-3.5 shrink-0" />
                     {order.phone}
                   </p>
-                  {(order.district || order.address_text) && (
+                  {(district || order.address_text) && (
                     <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
                       <MapPin className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
                       <span className="truncate">
-                        {[order.district, order.address_text].filter(Boolean).join(", ")}
+                        {[district, order.address_text].filter(Boolean).join(", ")}
                       </span>
                     </p>
                   )}
