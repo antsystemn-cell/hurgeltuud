@@ -34,6 +34,7 @@ export default function DriverDashboard() {
   const { user } = useAuth();
   const [filter, setFilter] = useState<string>("active");
   const [search, setSearch] = useState("");
+  const [storeFilter, setStoreFilter] = useState<string>("all");
   const { data: orders, isLoading } = useDriverOrders(user?.id || "", filter);
   const updateStatus = useUpdateOrderStatus();
   const updatePayment = useUpdatePaymentStatus();
