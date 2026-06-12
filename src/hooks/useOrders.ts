@@ -144,15 +144,13 @@ export function useUpdateOrderStatus() {
       orderId,
       status,
       userId,
-      paymentCollectedInCash,
     }: {
       orderId: string;
       status: FulfillmentStatus;
       userId: string;
-      paymentCollectedInCash?: boolean;
     }) => {
       // Double-submit guard + offline queue handled inside the shared helper.
-      return await applyStatusUpdateResilient({ orderId, status, userId, paymentCollectedInCash });
+      return await applyStatusUpdateResilient({ orderId, status, userId });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
   });
