@@ -146,7 +146,15 @@ export default function SourceSystemsPage() {
                     >
                       Хадгалах
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => setEditingSecrets((prev) => ({ ...prev, [s.id]: undefined as never }))}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setEditingSecrets((prev) => {
+                        const next = { ...prev };
+                        delete next[s.id];
+                        return next;
+                      })}
+                    >
                       Болих
                     </Button>
                   </div>
