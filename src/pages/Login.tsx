@@ -5,6 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Download } from "lucide-react";
 import { usePwaSettings } from "@/hooks/usePwaSettings";
 import logo from "@/assets/logo.png";
@@ -26,6 +34,29 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
+
+  // Forgot password
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMsg, setResetMsg] = useState("");
+  const [resetErr, setResetErr] = useState("");
+
+  const handleReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetErr("");
+    setResetMsg("");
+    setResetLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setResetLoading(false);
+    if (error) {
+      setResetErr(error.message);
+    } else {
+      setResetMsg("Нууц үг сэргээх холбоосыг имэйл хаягаар тань илгээлээ.");
+    }
+  };
 
   // PWA install prompt
   const { data: pwaSettings } = usePwaSettings();
@@ -140,7 +171,44 @@ export default function Login() {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Нэвтэрч байна..." : "Нэвтрэх"}
           </Button>
+          <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+            <DialogTrigger asChild>
+              <button
+                type="button"
+                className="block w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Нууц үгээ мартсан уу?
+              </button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Нууц үг сэргээх</DialogTitle>
+                <DialogDescription>
+                  Бүртгэлтэй имэйл хаягаа оруулна уу. Бид нууц үг сэргээх холбоос илгээнэ.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleReset} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email">Имэйл хаяг</Label>
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    required
+                    placeholder="example@mail.com"
+                  />
+                </div>
+                {resetErr && <p className="text-sm text-destructive">{resetErr}</p>}
+                {resetMsg && <p className="text-sm text-primary">{resetMsg}</p>}
+                <Button type="submit" className="w-full" disabled={resetLoading}>
+                  {resetLoading ? "Илгээж байна..." : "Холбоос илгээх"}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
         </form>
+
 
         <Link
           to="/register-driver"

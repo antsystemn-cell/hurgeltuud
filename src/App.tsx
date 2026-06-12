@@ -8,6 +8,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { ReactNode } from "react";
 
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import DriverRegister from "./pages/DriverRegister";
 import DriverDashboard from "./pages/driver/DriverDashboard";
 import DriverWallet from "./pages/driver/DriverWallet";
@@ -60,6 +61,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/register-driver" element={<DriverRegister />} />
 
             {/* Partner portal: embedded by external admin panels via token, no app login required */}
