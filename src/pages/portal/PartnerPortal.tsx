@@ -88,6 +88,7 @@ export default function PartnerPortal() {
   const assignDriver = usePortalAssignDriver(token);
   const updateStatus = usePortalUpdateFulfillment(token);
   const updatePayment = usePortalUpdatePayment(token);
+  const updateAddress = usePortalUpdateAddress(token);
 
   if (!token) {
     return (
@@ -245,38 +246,17 @@ export default function PartnerPortal() {
                             ))}
                           </SelectContent>
                         </Select>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-9 text-xs"
-                          onClick={() => {
-                            const printWindow = window.open("", "_blank");
-                            if (!printWindow) return;
-                            const items = order.order_items || [];
-                            printWindow.document.write(`
-                              <html><head><title>Label</title>
-                              <style>
-                                @page { size: 70mm 80mm; margin: 0; }
-                                body { margin: 0; padding: 4mm; font-family: sans-serif; font-size: 11px; width: 70mm; }
-                                .district { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
-                                .items { margin: 6px 0; }
-                                .footer { margin-top: 8px; font-size: 9px; text-align: center; border-top: 1px dashed #000; padding-top: 4px; }
-                                .payment-note { font-weight: bold; margin-top: 4px; padding: 2px 4px; border: 1px solid #000; }
-                              </style></head><body>
-                              <div class="district">${order.district || "—"}</div>
-                              <div>${order.address_text || ""}</div>
-                              <div>${order.phone}</div>
-                              <div class="items">${items.map((it: any) => `<div>${it.product_name_snapshot} × ${it.quantity}</div>`).join("")}</div>
-                              ${order.payment_status !== "paid" ? `<div class="payment-note">⚠ ${PAYMENT_LABELS[order.payment_status as PaymentStatus]}${order.total_amount ? ` — ₮${Number(order.total_amount).toLocaleString()}` : ""}</div>` : ""}
-                              <div class="footer">Баярлалаа! 🙏</div>
-                              </body></html>
-                            `);
-                            printWindow.document.close();
-                            printWindow.print();
-                          }}
+                        <Select
+                          value={order.district || detectDistrict(order.address_text) || ""}
+                          onValueChange={(val) => updateAddress.mutate({ order_id: order.id, district: val, address_text: order.address_text || "" })}
                         >
-                          <Printer className="h-4 w-4 mr-1" /> Хэвлэх
-                        </Button>
+                          <SelectTrigger className="w-[120px] h-9 text-xs"><SelectValue placeholder="Дүүрэг" /></SelectTrigger>
+                          <SelectContent>
+                            {DISTRICTS.map((d) => (
+                              <SelectItem key={d} value={d}>{d}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   </div>
