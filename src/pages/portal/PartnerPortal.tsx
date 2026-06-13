@@ -17,8 +17,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Phone, Pencil, Check, X, Printer } from "lucide-react";
-import { STATUS_BORDER_COLORS, STATUS_BG_COLORS, formatOrderDate } from "@/lib/orderHelpers";
+import { Search, Phone, Pencil, Check, X } from "lucide-react";
+import { STATUS_BORDER_COLORS, STATUS_BG_COLORS, formatOrderDate, detectDistrict } from "@/lib/orderHelpers";
+
+const DISTRICTS = ["БЗД", "БГД", "СХД", "ЧД", "ХУД", "НД"];
 
 function EditableAddress({ order, token }: { order: any; token: string }) {
   const [editing, setEditing] = useState(false);
