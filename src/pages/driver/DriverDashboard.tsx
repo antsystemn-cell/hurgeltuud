@@ -380,32 +380,75 @@ export default function DriverDashboard() {
                       </span>
                     </div>
                     <ul className="divide-y divide-primary/10">
-                      {order.order_items.map((item: { id: string; product_name_snapshot: string; quantity: number }) => (
+                      {order.order_items.map((item) => (
                         <li key={item.id} className="flex items-center justify-between gap-3 px-3 py-2">
-                          <span className="text-sm font-medium text-foreground">{item.product_name_snapshot}</span>
-                          <span className="shrink-0 rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
-                            × {item.quantity}
-                          </span>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm font-medium text-foreground">{item.product_name_snapshot}</span>
+                            {item.variant_snapshot && (
+                              <p className="text-[11px] text-muted-foreground">{item.variant_snapshot}</p>
+                            )}
+                          </div>
+                          <div className="shrink-0 text-right">
+                            {item.unit_price ? (
+                              <p className="text-[11px] text-muted-foreground">₮{Number(item.unit_price).toLocaleString()}</p>
+                            ) : null}
+                            <span className="shrink-0 rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+                              × {item.quantity}
+                            </span>
+                            {item.line_total ? (
+                              <p className="text-xs font-medium text-foreground mt-0.5">₮{Number(item.line_total).toLocaleString()}</p>
+                            ) : null}
+                          </div>
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
 
-                {/* Payment status badge */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">💰</span>
-                  <Badge
-                    variant={order.payment_status === "paid" ? "default" : "secondary"}
-                    className="text-xs"
-                  >
-                    {PAYMENT_LABELS[order.payment_status]}
-                  </Badge>
+                {/* Financial summary */}
+                <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <Receipt className="h-3.5 w-3.5 text-primary" />
+                    Төлбөрийн мэдээлэл
+                  </div>
+                  {order.subtotal != null && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Барааны дүн</span>
+                      <span className="font-medium text-foreground">₮{Number(order.subtotal).toLocaleString()}</span>
+                    </div>
+                  )}
+                  {order.delivery_fee != null && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Хүргэлтийн төлбөр</span>
+                      <span className="font-medium text-foreground">₮{Number(order.delivery_fee).toLocaleString()}</span>
+                    </div>
+                  )}
+                  {order.payment_method && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Төлбөрийн хэлбэр</span>
+                      <span className="font-medium text-foreground">{order.payment_method}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm border-t border-border pt-2">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <CreditCard className="h-3.5 w-3.5" />
+                      Төлөв
+                    </span>
+                    <Badge
+                      variant={order.payment_status === "paid" ? "default" : "secondary"}
+                      className="text-xs"
+                    >
+                      {PAYMENT_LABELS[order.payment_status]}
+                    </Badge>
+                  </div>
                   {order.total_amount ? (
-                    <span className="text-sm font-medium text-foreground">₮{Number(order.total_amount).toLocaleString()}</span>
+                    <div className="flex justify-between text-sm font-semibold">
+                      <span className="text-foreground">Нийт</span>
+                      <span className="text-foreground">₮{Number(order.total_amount).toLocaleString()}</span>
+                    </div>
                   ) : null}
                   {order.payment_status === "paid" && (
-                    <span className="text-[10px] text-muted-foreground">✓ Жолооч баталсан</span>
+                    <p className="text-[11px] text-muted-foreground">✓ Жолооч баталсан</p>
                   )}
                 </div>
 
