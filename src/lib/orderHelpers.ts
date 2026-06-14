@@ -1,5 +1,31 @@
 import type { FulfillmentStatus } from "@/hooks/useOrders";
 
+// ---- Delivery outcomes ----
+// When a driver finishes an order they must pick exactly one outcome, write a
+// clear note and attach a mandatory proof photo. Each outcome maps to either a
+// "delivered" or "cancelled" fulfillment status.
+export type DeliveryOutcomeKind = "delivered" | "cancelled";
+
+export type DeliveryOutcomeDef = {
+  code: string;
+  label: string;
+  kind: DeliveryOutcomeKind;
+};
+
+export const DELIVERY_OUTCOMES: DeliveryOutcomeDef[] = [
+  { code: "handed_to_customer", label: "Хэрэглэгчид биеэр гардуулсан", kind: "delivered" },
+  { code: "local_vehicle", label: "Орон нутгийн машинд тавьсан", kind: "delivered" },
+  { code: "left_at_shop", label: "Гэрийн доод талын дэлгүүрт үлдээсэн", kind: "delivered" },
+  { code: "no_answer", label: "Утсаа аваагүй тул буцаасан", kind: "cancelled" },
+  { code: "no_response", label: "Хариу өгөөгүй тул буцаасан", kind: "cancelled" },
+  { code: "customer_refused", label: "Хэрэглэгч авахгүй тул буцаасан", kind: "cancelled" },
+  { code: "exchange_requested", label: "Хэрэглэгч солиулах хүсэлт гаргасан", kind: "cancelled" },
+];
+
+export const DELIVERY_OUTCOME_LABELS: Record<string, string> = Object.fromEntries(
+  DELIVERY_OUTCOMES.map((o) => [o.code, o.label])
+);
+
 export const STATUS_BORDER_COLORS: Record<FulfillmentStatus, string> = {
   confirmed: "border-l-blue-500",
   phone_confirmed: "border-l-amber-500",

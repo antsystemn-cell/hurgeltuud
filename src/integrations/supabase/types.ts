@@ -132,6 +132,11 @@ export type Database = {
           delivered_at: string | null
           delivery_fee: number | null
           delivery_note: string | null
+          delivery_outcome: string | null
+          delivery_outcome_at: string | null
+          delivery_outcome_by: string | null
+          delivery_outcome_note: string | null
+          delivery_proof_url: string | null
           district: string | null
           external_order_id: string | null
           fulfillment_status: Database["public"]["Enums"]["fulfillment_status"]
@@ -173,6 +178,11 @@ export type Database = {
           delivered_at?: string | null
           delivery_fee?: number | null
           delivery_note?: string | null
+          delivery_outcome?: string | null
+          delivery_outcome_at?: string | null
+          delivery_outcome_by?: string | null
+          delivery_outcome_note?: string | null
+          delivery_proof_url?: string | null
           district?: string | null
           external_order_id?: string | null
           fulfillment_status?: Database["public"]["Enums"]["fulfillment_status"]
@@ -214,6 +224,11 @@ export type Database = {
           delivered_at?: string | null
           delivery_fee?: number | null
           delivery_note?: string | null
+          delivery_outcome?: string | null
+          delivery_outcome_at?: string | null
+          delivery_outcome_by?: string | null
+          delivery_outcome_note?: string | null
+          delivery_proof_url?: string | null
           district?: string | null
           external_order_id?: string | null
           fulfillment_status?: Database["public"]["Enums"]["fulfillment_status"]

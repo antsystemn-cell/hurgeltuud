@@ -5,7 +5,7 @@ import type { Order } from "@/hooks/useOrders";
 import { getStoreInfo, resolveDistrict, formatOrderDate } from "@/lib/orderHelpers";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Phone, MapPin, CheckCircle2, XCircle, Banknote, Search, ChevronDown, Store, Package, GripVertical, ArrowUp, ArrowDown, ListOrdered, Check, Navigation, Calendar, MessageSquare, Receipt, CreditCard, Tag } from "lucide-react";
+import { Phone, MapPin, CheckCircle2, XCircle, Banknote, Search, ChevronDown, Store, Package, GripVertical, ArrowUp, ArrowDown, ListOrdered, Check, Navigation, Calendar, MessageSquare, Receipt, CreditCard, Tag, ClipboardCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
@@ -23,6 +23,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { DeliveryOutcomeDialog } from "@/components/driver/DeliveryOutcomeDialog";
+import { DELIVERY_OUTCOME_LABELS } from "@/lib/orderHelpers";
+import { ProofImage } from "@/components/driver/ProofImage";
 
 const FILTERS = [
   { key: "active", label: "Идэвхтэй" },
@@ -61,6 +64,7 @@ export default function DriverDashboard() {
   const [storeFilter, setStoreFilter] = useState<string>("all");
   const [reorderMode, setReorderMode] = useState(false);
   const [manualOrder, setManualOrder] = useState<string[]>([]);
+  const [outcomeOrder, setOutcomeOrder] = useState<Order | null>(null);
   const { data: orders, isLoading } = useDriverOrders(user?.id || "", filter);
   const updateStatus = useUpdateOrderStatus();
   const updatePayment = useUpdatePaymentStatus();
@@ -130,15 +134,6 @@ export default function DriverDashboard() {
   const handleMarkPaid = (orderId: string) => {
     if (!user) return;
     updatePayment.mutate({ orderId, status: "paid", userId: user.id });
-  };
-  const handleMarkDelivered = (orderId: string) => {
-    if (!user) return;
-    updateStatus.mutate({ orderId, status: "delivered", userId: user.id });
-  };
-
-  const handleMarkCancelled = (orderId: string) => {
-    if (!user) return;
-    updateStatus.mutate({ orderId, status: "cancelled", userId: user.id });
   };
 
   return (
@@ -509,62 +504,45 @@ export default function DriverDashboard() {
                   )}
                 </div>
 
-                {/* Fulfillment actions */}
+                {/* Fulfillment action — opens the outcome dialog (reason + note + photo) */}
                 {order.fulfillment_status !== "delivered" && order.fulfillment_status !== "cancelled" && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <button
-                          className="flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-medium disabled:opacity-50"
-                          disabled={updateStatus.isPending}
-                        >
-                          <CheckCircle2 className="h-5 w-5" />
-                          <span className="text-xs">Хүргэсэн</span>
-                        </button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Хүргэсэн гэж тэмдэглэх үү?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {order.customer_name} — {order.internal_order_number} захиалгыг хүргэсэн гэж тэмдэглэнэ.
-                            Төлбөр энэ үйлдлээр өөрчлөгдөхгүй — төлбөрийг тусдаа "Төлбөр авсан" товчоор баталгаажуулна.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Үгүй</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleMarkDelivered(order.id)}>Тийм</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                  <button
+                    onClick={() => setOutcomeOrder(order)}
+                    disabled={updateStatus.isPending}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
+                  >
+                    <ClipboardCheck className="h-5 w-5" />
+                    Хүргэлтийн үр дүн бүртгэх
+                  </button>
+                )}
 
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <button
-                          className="flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium disabled:opacity-50"
-                          disabled={updateStatus.isPending}
-                        >
-                          <XCircle className="h-5 w-5" />
-                          <span className="text-xs">Цуцлах</span>
-                        </button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Цуцлах уу?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {order.customer_name} — {order.internal_order_number} захиалгыг цуцлах гэж байна.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Үгүй</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            onClick={() => handleMarkCancelled(order.id)}
-                          >
-                            Тийм
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                {/* Recorded outcome (for finished orders) */}
+                {order.delivery_outcome && (
+                  <div
+                    className={cn(
+                      "rounded-lg border p-3 space-y-2",
+                      order.fulfillment_status === "delivered"
+                        ? "border-emerald-300 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30"
+                        : "border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/30"
+                    )}
+                  >
+                    <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      {order.fulfillment_status === "delivered" ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-destructive" />
+                      )}
+                      {DELIVERY_OUTCOME_LABELS[order.delivery_outcome] || order.delivery_outcome}
+                    </p>
+                    {order.delivery_outcome_note && (
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{order.delivery_outcome_note}</p>
+                    )}
+                    {order.delivery_proof_url && (
+                      <ProofImage
+                        path={order.delivery_proof_url}
+                        className="w-full max-h-56 object-cover rounded-md border border-border"
+                      />
+                    )}
                   </div>
                 )}
               </CollapsibleContent>
@@ -572,6 +550,16 @@ export default function DriverDashboard() {
             );
           })}
         </div>
+      )}
+
+      {outcomeOrder && (
+        <DeliveryOutcomeDialog
+          order={outcomeOrder}
+          open={!!outcomeOrder}
+          onOpenChange={(open) => {
+            if (!open) setOutcomeOrder(null);
+          }}
+        />
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
-import { applyStatusUpdateResilient, applyPaymentUpdateResilient, fireShopWebhook } from "@/lib/orderSync";
+import { applyStatusUpdateResilient, applyPaymentUpdateResilient, fireShopWebhook, applyDeliveryOutcome, type DeliveryOutcomeInput } from "@/lib/orderSync";
 
 type Order = Database["public"]["Tables"]["orders"]["Row"];
 type OrderInsert = Database["public"]["Tables"]["orders"]["Insert"];
@@ -206,6 +206,18 @@ export function useUpdatePaymentStatus() {
     mutationFn: async ({ orderId, status, userId }: { orderId: string; status: PaymentStatus; userId: string }) => {
       // Double-submit guard + offline queue handled inside the shared helper.
       return await applyPaymentUpdateResilient({ orderId, status, userId });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
+  });
+}
+
+// Record a delivery outcome (reason + note + mandatory proof photo) and set the
+// resulting fulfillment status in one atomic update.
+export function useRecordDeliveryOutcome() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: DeliveryOutcomeInput) => {
+      await applyDeliveryOutcome(input);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
   });
