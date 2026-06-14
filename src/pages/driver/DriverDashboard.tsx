@@ -5,7 +5,7 @@ import type { Order } from "@/hooks/useOrders";
 import { getStoreInfo, resolveDistrict } from "@/lib/orderHelpers";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Phone, MapPin, CheckCircle2, XCircle, Banknote, Search, ChevronDown, Store, Package, GripVertical, ArrowUp, ArrowDown, ListOrdered, Check } from "lucide-react";
+import { Phone, MapPin, CheckCircle2, XCircle, Banknote, Search, ChevronDown, Store, Package, GripVertical, ArrowUp, ArrowDown, ListOrdered, Check, Navigation } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
@@ -35,6 +35,11 @@ const seqKey = (userId: string) => `driver_delivery_sequence_${userId}`;
 
 // Sort orders by a saved manual sequence of ids. Orders not in the saved list
 // keep their original (created_at) order and fall to the bottom. Stable sort.
+function mapsUrl(address: string) {
+  const query = encodeURIComponent(address);
+  return `https://www.google.com/maps/dir/?api=1&destination=${query}`;
+}
+
 function sortByManual<T extends { id: string }>(list: T[], manualOrder: string[]): T[] {
   if (!manualOrder.length) return list;
   const pos = new Map(manualOrder.map((id, i) => [id, i]));
@@ -283,12 +288,18 @@ export default function DriverDashboard() {
                     {order.phone}
                   </p>
                   {(district || order.address_text) && (
-                    <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
+                    <a
+                      href={mapsUrl([district, order.address_text].filter(Boolean).join(", "))}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-start gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <MapPin className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
                       <span className="truncate">
                         {[district, order.address_text].filter(Boolean).join(", ")}
                       </span>
-                    </p>
+                    </a>
                   )}
                 </div>
                 <ChevronDown className="chevron h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200 mt-0.5" />
@@ -300,7 +311,12 @@ export default function DriverDashboard() {
 
                 {/* Full location with note */}
                 {(district || order.address_text || order.delivery_note) && (
-                  <div className="flex items-start gap-2 text-sm rounded-lg bg-secondary/50 p-2.5">
+                  <a
+                    href={mapsUrl([district, order.address_text].filter(Boolean).join(", "))}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start gap-2 text-sm rounded-lg bg-secondary/50 p-2.5 hover:bg-secondary/70 transition-colors"
+                  >
                     <MapPin className="h-4 w-4 mt-0.5 text-primary shrink-0" />
                     <div>
                       {district && <p className="font-medium text-foreground">{district}</p>}
@@ -309,7 +325,7 @@ export default function DriverDashboard() {
                         <p className="text-xs text-muted-foreground mt-1">📝 {order.delivery_note}</p>
                       )}
                     </div>
-                  </div>
+                  </a>
                 )}
 
                 {/* Items */}
