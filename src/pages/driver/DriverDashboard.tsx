@@ -311,7 +311,12 @@ export default function DriverDashboard() {
 
                 {/* Full location with note */}
                 {(district || order.address_text || order.delivery_note) && (
-                  <div className="flex items-start gap-2 text-sm rounded-lg bg-secondary/50 p-2.5">
+                  <a
+                    href={mapsUrl([district, order.address_text].filter(Boolean).join(", "))}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start gap-2 text-sm rounded-lg bg-secondary/50 p-2.5 hover:bg-secondary/70 transition-colors"
+                  >
                     <MapPin className="h-4 w-4 mt-0.5 text-primary shrink-0" />
                     <div>
                       {district && <p className="font-medium text-foreground">{district}</p>}
@@ -320,7 +325,7 @@ export default function DriverDashboard() {
                         <p className="text-xs text-muted-foreground mt-1">📝 {order.delivery_note}</p>
                       )}
                     </div>
-                  </div>
+                  </a>
                 )}
 
                 {/* Items */}
