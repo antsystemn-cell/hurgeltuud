@@ -211,7 +211,17 @@ export function useUpdatePaymentStatus() {
   });
 }
 
-// Manually retry a stuck outbound sync for one order (admin action).
+// Record a delivery outcome (reason + note + mandatory proof photo) and set the
+// resulting fulfillment status in one atomic update.
+export function useRecordDeliveryOutcome() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: DeliveryOutcomeInput) => {
+      await applyDeliveryOutcome(input);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
+  });
+}
 export function useManualRetrySync() {
   const qc = useQueryClient();
   return useMutation({
