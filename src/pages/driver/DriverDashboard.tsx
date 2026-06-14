@@ -306,8 +306,49 @@ export default function DriverDashboard() {
               </CollapsibleTrigger>
 
               <CollapsibleContent className="px-4 pb-4 space-y-3">
-                {/* Order number */}
-                <p className="text-xs text-muted-foreground">{order.internal_order_number}</p>
+                {/* Order meta */}
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <Tag className="h-3 w-3" />
+                    {order.internal_order_number}
+                  </span>
+                  {order.external_order_id && (
+                    <span className="inline-flex items-center gap-1">
+                      <Store className="h-3 w-3" />
+                      {order.external_order_id}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {(() => {
+                      const d = formatOrderDate(order.created_at);
+                      return `${d.day} ${d.month}, ${d.time}`;
+                    })()}
+                  </span>
+                </div>
+
+                {/* Alternate phone */}
+                {order.alternate_phone && (
+                  <a
+                    href={`tel:${order.alternate_phone}`}
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Phone className="h-3.5 w-3.5 shrink-0" />
+                    <span>Нэмэлт утас: {order.alternate_phone}</span>
+                  </a>
+                )}
+
+                {/* Customer note */}
+                {order.customer_note && (
+                  <div className="flex items-start gap-2 text-sm rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-2.5">
+                    <MessageSquare className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <div>
+                      <p className="font-medium text-foreground text-xs">Захиалагчийн тэмдэглэл</p>
+                      <p className="text-muted-foreground text-sm">{order.customer_note}</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Full location with note */}
                 {(district || order.address_text || order.delivery_note) && (
