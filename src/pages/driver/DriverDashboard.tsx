@@ -288,12 +288,18 @@ export default function DriverDashboard() {
                     {order.phone}
                   </p>
                   {(district || order.address_text) && (
-                    <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
+                    <a
+                      href={mapsUrl([district, order.address_text].filter(Boolean).join(", "))}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-start gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <MapPin className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
                       <span className="truncate">
                         {[district, order.address_text].filter(Boolean).join(", ")}
                       </span>
-                    </p>
+                    </a>
                   )}
                 </div>
                 <ChevronDown className="chevron h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200 mt-0.5" />
