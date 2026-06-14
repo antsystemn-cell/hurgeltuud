@@ -35,6 +35,11 @@ const seqKey = (userId: string) => `driver_delivery_sequence_${userId}`;
 
 // Sort orders by a saved manual sequence of ids. Orders not in the saved list
 // keep their original (created_at) order and fall to the bottom. Stable sort.
+function mapsUrl(address: string) {
+  const query = encodeURIComponent(address);
+  return `https://www.google.com/maps/dir/?api=1&destination=${query}`;
+}
+
 function sortByManual<T extends { id: string }>(list: T[], manualOrder: string[]): T[] {
   if (!manualOrder.length) return list;
   const pos = new Map(manualOrder.map((id, i) => [id, i]));
