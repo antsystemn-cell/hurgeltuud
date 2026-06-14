@@ -551,6 +551,16 @@ export default function DriverDashboard() {
           })}
         </div>
       )}
+
+      {outcomeOrder && (
+        <DeliveryOutcomeDialog
+          order={outcomeOrder}
+          open={!!outcomeOrder}
+          onOpenChange={(open) => {
+            if (!open) setOutcomeOrder(null);
+          }}
+        />
+      )}
     </div>
   );
 }
