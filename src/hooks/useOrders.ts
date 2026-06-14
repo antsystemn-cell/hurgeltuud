@@ -222,6 +222,8 @@ export function useRecordDeliveryOutcome() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
   });
 }
+
+// Manually retry a stuck outbound sync for one order (admin action).
 export function useManualRetrySync() {
   const qc = useQueryClient();
   return useMutation({
