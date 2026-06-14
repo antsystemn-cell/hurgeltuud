@@ -23,6 +23,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { DeliveryOutcomeDialog } from "@/components/driver/DeliveryOutcomeDialog";
+import { DELIVERY_OUTCOME_LABELS } from "@/lib/orderHelpers";
+import { ProofImage } from "@/components/driver/ProofImage";
 
 const FILTERS = [
   { key: "active", label: "Идэвхтэй" },
