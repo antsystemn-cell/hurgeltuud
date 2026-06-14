@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/auth";
 import { useDriverOrders, useUpdateOrderStatus, useUpdatePaymentStatus, FULFILLMENT_LABELS, PAYMENT_LABELS } from "@/hooks/useOrders";
 import type { Order } from "@/hooks/useOrders";
-import { getStoreInfo, resolveDistrict } from "@/lib/orderHelpers";
+import { getStoreInfo, resolveDistrict, formatOrderDate } from "@/lib/orderHelpers";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Phone, MapPin, CheckCircle2, XCircle, Banknote, Search, ChevronDown, Store, Package, GripVertical, ArrowUp, ArrowDown, ListOrdered, Check, Navigation, Calendar, MessageSquare, Receipt, CreditCard, Clock, Tag } from "lucide-react";
