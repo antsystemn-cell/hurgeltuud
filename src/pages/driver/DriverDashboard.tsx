@@ -135,15 +135,6 @@ export default function DriverDashboard() {
     if (!user) return;
     updatePayment.mutate({ orderId, status: "paid", userId: user.id });
   };
-  const handleMarkDelivered = (orderId: string) => {
-    if (!user) return;
-    updateStatus.mutate({ orderId, status: "delivered", userId: user.id });
-  };
-
-  const handleMarkCancelled = (orderId: string) => {
-    if (!user) return;
-    updateStatus.mutate({ orderId, status: "cancelled", userId: user.id });
-  };
 
   return (
     <div className="p-4 max-w-lg mx-auto space-y-4">
