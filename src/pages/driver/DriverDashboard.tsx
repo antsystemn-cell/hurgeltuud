@@ -64,6 +64,7 @@ export default function DriverDashboard() {
   const [storeFilter, setStoreFilter] = useState<string>("all");
   const [reorderMode, setReorderMode] = useState(false);
   const [manualOrder, setManualOrder] = useState<string[]>([]);
+  const [outcomeOrder, setOutcomeOrder] = useState<Order | null>(null);
   const { data: orders, isLoading } = useDriverOrders(user?.id || "", filter);
   const updateStatus = useUpdateOrderStatus();
   const updatePayment = useUpdatePaymentStatus();
