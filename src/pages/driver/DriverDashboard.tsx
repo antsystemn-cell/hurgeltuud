@@ -2,10 +2,10 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/auth";
 import { useDriverOrders, useUpdateOrderStatus, useUpdatePaymentStatus, FULFILLMENT_LABELS, PAYMENT_LABELS } from "@/hooks/useOrders";
 import type { Order } from "@/hooks/useOrders";
-import { getStoreInfo, resolveDistrict } from "@/lib/orderHelpers";
+import { getStoreInfo, resolveDistrict, formatOrderDate } from "@/lib/orderHelpers";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Phone, MapPin, CheckCircle2, XCircle, Banknote, Search, ChevronDown, Store, Package, GripVertical, ArrowUp, ArrowDown, ListOrdered, Check, Navigation } from "lucide-react";
+import { Phone, MapPin, CheckCircle2, XCircle, Banknote, Search, ChevronDown, Store, Package, GripVertical, ArrowUp, ArrowDown, ListOrdered, Check, Navigation, Calendar, MessageSquare, Receipt, CreditCard, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
@@ -306,8 +306,49 @@ export default function DriverDashboard() {
               </CollapsibleTrigger>
 
               <CollapsibleContent className="px-4 pb-4 space-y-3">
-                {/* Order number */}
-                <p className="text-xs text-muted-foreground">{order.internal_order_number}</p>
+                {/* Order meta */}
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <Tag className="h-3 w-3" />
+                    {order.internal_order_number}
+                  </span>
+                  {order.external_order_id && (
+                    <span className="inline-flex items-center gap-1">
+                      <Store className="h-3 w-3" />
+                      {order.external_order_id}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {(() => {
+                      const d = formatOrderDate(order.created_at);
+                      return `${d.day} ${d.month}, ${d.time}`;
+                    })()}
+                  </span>
+                </div>
+
+                {/* Alternate phone */}
+                {order.alternate_phone && (
+                  <a
+                    href={`tel:${order.alternate_phone}`}
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Phone className="h-3.5 w-3.5 shrink-0" />
+                    <span>Нэмэлт утас: {order.alternate_phone}</span>
+                  </a>
+                )}
+
+                {/* Customer note */}
+                {order.customer_note && (
+                  <div className="flex items-start gap-2 text-sm rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-2.5">
+                    <MessageSquare className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <div>
+                      <p className="font-medium text-foreground text-xs">Захиалагчийн тэмдэглэл</p>
+                      <p className="text-muted-foreground text-sm">{order.customer_note}</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Full location with note */}
                 {(district || order.address_text || order.delivery_note) && (
@@ -339,32 +380,75 @@ export default function DriverDashboard() {
                       </span>
                     </div>
                     <ul className="divide-y divide-primary/10">
-                      {order.order_items.map((item: { id: string; product_name_snapshot: string; quantity: number }) => (
+                      {order.order_items.map((item) => (
                         <li key={item.id} className="flex items-center justify-between gap-3 px-3 py-2">
-                          <span className="text-sm font-medium text-foreground">{item.product_name_snapshot}</span>
-                          <span className="shrink-0 rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
-                            × {item.quantity}
-                          </span>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm font-medium text-foreground">{item.product_name_snapshot}</span>
+                            {item.variant_snapshot && (
+                              <p className="text-[11px] text-muted-foreground">{item.variant_snapshot}</p>
+                            )}
+                          </div>
+                          <div className="shrink-0 text-right">
+                            {item.unit_price ? (
+                              <p className="text-[11px] text-muted-foreground">₮{Number(item.unit_price).toLocaleString()}</p>
+                            ) : null}
+                            <span className="shrink-0 rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+                              × {item.quantity}
+                            </span>
+                            {item.line_total ? (
+                              <p className="text-xs font-medium text-foreground mt-0.5">₮{Number(item.line_total).toLocaleString()}</p>
+                            ) : null}
+                          </div>
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
 
-                {/* Payment status badge */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">💰</span>
-                  <Badge
-                    variant={order.payment_status === "paid" ? "default" : "secondary"}
-                    className="text-xs"
-                  >
-                    {PAYMENT_LABELS[order.payment_status]}
-                  </Badge>
+                {/* Financial summary */}
+                <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <Receipt className="h-3.5 w-3.5 text-primary" />
+                    Төлбөрийн мэдээлэл
+                  </div>
+                  {order.subtotal != null && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Барааны дүн</span>
+                      <span className="font-medium text-foreground">₮{Number(order.subtotal).toLocaleString()}</span>
+                    </div>
+                  )}
+                  {order.delivery_fee != null && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Хүргэлтийн төлбөр</span>
+                      <span className="font-medium text-foreground">₮{Number(order.delivery_fee).toLocaleString()}</span>
+                    </div>
+                  )}
+                  {order.payment_method && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Төлбөрийн хэлбэр</span>
+                      <span className="font-medium text-foreground">{order.payment_method}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm border-t border-border pt-2">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <CreditCard className="h-3.5 w-3.5" />
+                      Төлөв
+                    </span>
+                    <Badge
+                      variant={order.payment_status === "paid" ? "default" : "secondary"}
+                      className="text-xs"
+                    >
+                      {PAYMENT_LABELS[order.payment_status]}
+                    </Badge>
+                  </div>
                   {order.total_amount ? (
-                    <span className="text-sm font-medium text-foreground">₮{Number(order.total_amount).toLocaleString()}</span>
+                    <div className="flex justify-between text-sm font-semibold">
+                      <span className="text-foreground">Нийт</span>
+                      <span className="text-foreground">₮{Number(order.total_amount).toLocaleString()}</span>
+                    </div>
                   ) : null}
                   {order.payment_status === "paid" && (
-                    <span className="text-[10px] text-muted-foreground">✓ Жолооч баталсан</span>
+                    <p className="text-[11px] text-muted-foreground">✓ Жолооч баталсан</p>
                   )}
                 </div>
 
