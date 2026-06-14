@@ -505,10 +505,12 @@ function LongPressCollapsible({
 }) {
   const timer = useRef<number>();
   const triggered = useRef(false);
+  const startPos = useRef<{ x: number; y: number } | null>(null);
 
-  const start = () => {
+  const start = (e: React.PointerEvent) => {
     if (!enableLongPress) return;
     triggered.current = false;
+    startPos.current = { x: e.clientX, y: e.clientY };
     timer.current = window.setTimeout(() => {
       triggered.current = true;
       onLongPress();
@@ -516,6 +518,14 @@ function LongPressCollapsible({
   };
   const cancel = () => {
     if (timer.current) window.clearTimeout(timer.current);
+    startPos.current = null;
+  };
+  // Only cancel if the finger/pointer actually moves (scroll), not on micro-jitter.
+  const maybeCancel = (e: React.PointerEvent) => {
+    if (!startPos.current) return;
+    const dx = Math.abs(e.clientX - startPos.current.x);
+    const dy = Math.abs(e.clientY - startPos.current.y);
+    if (dx > 10 || dy > 10) cancel();
   };
 
   return (
@@ -524,7 +534,8 @@ function LongPressCollapsible({
       onPointerDown={start}
       onPointerUp={cancel}
       onPointerLeave={cancel}
-      onPointerMove={cancel}
+      onPointerCancel={cancel}
+      onPointerMove={maybeCancel}
       onClickCapture={(e) => {
         // Swallow the click that ends a long press so the card doesn't toggle.
         if (triggered.current) {
