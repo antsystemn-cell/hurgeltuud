@@ -5,7 +5,7 @@ import type { Order } from "@/hooks/useOrders";
 import { getStoreInfo, resolveDistrict } from "@/lib/orderHelpers";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Phone, MapPin, CheckCircle2, XCircle, Banknote, Search, ChevronDown, Store, Package, GripVertical, ArrowUp, ArrowDown, ListOrdered, Check } from "lucide-react";
+import { Phone, MapPin, CheckCircle2, XCircle, Banknote, Search, ChevronDown, Store, Package, GripVertical, ArrowUp, ArrowDown, ListOrdered, Check, Navigation } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
