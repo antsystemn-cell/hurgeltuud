@@ -1,10 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/auth";
 import { useDriverOrders, useUpdateOrderStatus, useUpdatePaymentStatus, FULFILLMENT_LABELS, PAYMENT_LABELS } from "@/hooks/useOrders";
+import type { Order } from "@/hooks/useOrders";
 import { getStoreInfo, resolveDistrict } from "@/lib/orderHelpers";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Phone, MapPin, CheckCircle2, XCircle, Banknote, Search, ChevronDown, Store, Package } from "lucide-react";
+import { Phone, MapPin, CheckCircle2, XCircle, Banknote, Search, ChevronDown, Store, Package, GripVertical, ArrowUp, ArrowDown, ListOrdered, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
@@ -30,14 +31,53 @@ const FILTERS = [
   { key: "today", label: "Өнөөдөр" },
 ] as const;
 
+const seqKey = (userId: string) => `driver_delivery_sequence_${userId}`;
+
+// Sort orders by a saved manual sequence of ids. Orders not in the saved list
+// keep their original (created_at) order and fall to the bottom. Stable sort.
+function sortByManual<T extends { id: string }>(list: T[], manualOrder: string[]): T[] {
+  if (!manualOrder.length) return list;
+  const pos = new Map(manualOrder.map((id, i) => [id, i]));
+  return [...list]
+    .map((item, idx) => ({ item, idx }))
+    .sort((a, b) => {
+      const pa = pos.has(a.item.id) ? (pos.get(a.item.id) as number) : Number.MAX_SAFE_INTEGER;
+      const pb = pos.has(b.item.id) ? (pos.get(b.item.id) as number) : Number.MAX_SAFE_INTEGER;
+      if (pa !== pb) return pa - pb;
+      return a.idx - b.idx;
+    })
+    .map(({ item }) => item);
+}
+
 export default function DriverDashboard() {
   const { user } = useAuth();
   const [filter, setFilter] = useState<string>("active");
   const [search, setSearch] = useState("");
   const [storeFilter, setStoreFilter] = useState<string>("all");
+  const [reorderMode, setReorderMode] = useState(false);
+  const [manualOrder, setManualOrder] = useState<string[]>([]);
   const { data: orders, isLoading } = useDriverOrders(user?.id || "", filter);
   const updateStatus = useUpdateOrderStatus();
   const updatePayment = useUpdatePaymentStatus();
+
+  // Load saved sequence for this driver.
+  useEffect(() => {
+    if (!user?.id) return;
+    try {
+      const raw = localStorage.getItem(seqKey(user.id));
+      setManualOrder(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch {
+      setManualOrder([]);
+    }
+  }, [user?.id]);
+
+  const persistOrder = useCallback(
+    (ids: string[]) => {
+      setManualOrder(ids);
+      if (user?.id) localStorage.setItem(seqKey(user.id), JSON.stringify(ids));
+    },
+    [user?.id]
+  );
 
   // Distinct stores present in the loaded orders (for the store filter chips)
   const stores = useMemo(() => {
@@ -55,7 +95,7 @@ export default function DriverDashboard() {
   const filteredOrders = useMemo(() => {
     if (!orders) return [];
     const term = search.trim().toLowerCase();
-    return orders.filter((order) => {
+    const list = orders.filter((order) => {
       if (storeFilter !== "all" && getStoreInfo(order).key !== storeFilter) return false;
       if (!term) return true;
       const haystack = [
@@ -71,7 +111,16 @@ export default function DriverDashboard() {
         .toLowerCase();
       return haystack.includes(term);
     });
-  }, [orders, search, storeFilter]);
+    return sortByManual(list, manualOrder);
+  }, [orders, search, storeFilter, manualOrder]);
+
+  // Reordering is only meaningful for the active delivery list.
+  const canReorder = filter === "active" && filteredOrders.length > 1;
+
+  // Leave reorder mode automatically if it no longer applies.
+  useEffect(() => {
+    if (!canReorder && reorderMode) setReorderMode(false);
+  }, [canReorder, reorderMode]);
 
   const handleMarkPaid = (orderId: string) => {
     if (!user) return;
@@ -89,70 +138,102 @@ export default function DriverDashboard() {
 
   return (
     <div className="p-4 max-w-lg mx-auto space-y-4">
-      <h2 className="text-xl font-semibold text-foreground">Миний хүргэлтүүд</h2>
-
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Нэр, утас, хаягаар хайх..."
-          className="pl-9"
-        />
-      </div>
-
-      {/* Filters */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {FILTERS.map((f) => (
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-xl font-semibold text-foreground">Миний хүргэлтүүд</h2>
+        {canReorder && (
           <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
+            onClick={() => setReorderMode((v) => !v)}
             className={cn(
-              "px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors",
-              filter === f.key
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground"
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Store filter */}
-      {stores.length > 1 && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <Store className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <button
-            onClick={() => setStoreFilter("all")}
-            className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-colors",
-              storeFilter === "all"
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+              reorderMode
                 ? "bg-primary text-primary-foreground border-primary"
-                : "bg-card text-muted-foreground border-border"
+                : "bg-card text-foreground border-border"
             )}
           >
-            Бүх дэлгүүр
+            {reorderMode ? <Check className="h-3.5 w-3.5" /> : <ListOrdered className="h-3.5 w-3.5" />}
+            {reorderMode ? "Дуусгах" : "Дараалал засах"}
           </button>
-          {stores.map((s) => (
-            <button
-              key={s.key}
-              onClick={() => setStoreFilter(s.key)}
-              className={cn(
-                "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-colors",
-                storeFilter === s.key
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card text-muted-foreground border-border"
-              )}
-            >
-              {s.name} <span className="opacity-70">({s.count})</span>
-            </button>
-          ))}
-        </div>
+        )}
+      </div>
+
+      {!reorderMode && (
+        <>
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Нэр, утас, хаягаар хайх..."
+              className="pl-9"
+            />
+          </div>
+
+          {/* Filters */}
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {FILTERS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors",
+                  filter === f.key
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-secondary-foreground"
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Store filter */}
+          {stores.length > 1 && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              <Store className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <button
+                onClick={() => setStoreFilter("all")}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-colors",
+                  storeFilter === "all"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card text-muted-foreground border-border"
+                )}
+              >
+                Бүх дэлгүүр
+              </button>
+              {stores.map((s) => (
+                <button
+                  key={s.key}
+                  onClick={() => setStoreFilter(s.key)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-colors",
+                    storeFilter === s.key
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card text-muted-foreground border-border"
+                  )}
+                >
+                  {s.name} <span className="opacity-70">({s.count})</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {canReorder && (
+            <p className="text-xs text-muted-foreground">
+              💡 Картыг удаан дарж хүргэлтийн дарааллыг өөрчилнө.
+            </p>
+          )}
+        </>
       )}
 
-      {isLoading ? (
+      {reorderMode ? (
+        <ReorderList
+          orders={filteredOrders as Order[]}
+          onChange={(ids) => persistOrder(ids)}
+          onDone={() => setReorderMode(false)}
+        />
+      ) : isLoading ? (
         <div className="text-center py-8 text-muted-foreground">Уншиж байна...</div>
       ) : !filteredOrders.length ? (
         <div className="text-center py-8 text-muted-foreground">
@@ -164,7 +245,11 @@ export default function DriverDashboard() {
             const store = getStoreInfo(order);
             const district = resolveDistrict(order);
             return (
-            <Collapsible key={order.id} className="bg-card border border-border rounded-xl">
+            <LongPressCollapsible
+              key={order.id}
+              enableLongPress={canReorder}
+              onLongPress={() => setReorderMode(true)}
+            >
               {/* Compact summary row — always visible, click to expand */}
               <CollapsibleTrigger className="w-full p-4 flex items-start gap-3 text-left [&[data-state=open]>svg.chevron]:rotate-180">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
@@ -383,11 +468,190 @@ export default function DriverDashboard() {
                   </div>
                 )}
               </CollapsibleContent>
-            </Collapsible>
+            </LongPressCollapsible>
             );
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// Wraps a Collapsible and detects a long press (~500ms) to trigger reorder mode.
+function LongPressCollapsible({
+  children,
+  enableLongPress,
+  onLongPress,
+}: {
+  children: React.ReactNode;
+  enableLongPress: boolean;
+  onLongPress: () => void;
+}) {
+  const timer = useRef<number>();
+  const triggered = useRef(false);
+
+  const start = () => {
+    if (!enableLongPress) return;
+    triggered.current = false;
+    timer.current = window.setTimeout(() => {
+      triggered.current = true;
+      onLongPress();
+    }, 500);
+  };
+  const cancel = () => {
+    if (timer.current) window.clearTimeout(timer.current);
+  };
+
+  return (
+    <Collapsible
+      className="bg-card border border-border rounded-xl"
+      onPointerDown={start}
+      onPointerUp={cancel}
+      onPointerLeave={cancel}
+      onPointerMove={cancel}
+      onClickCapture={(e) => {
+        // Swallow the click that ends a long press so the card doesn't toggle.
+        if (triggered.current) {
+          e.preventDefault();
+          e.stopPropagation();
+          triggered.current = false;
+        }
+      }}
+    >
+      {children}
+    </Collapsible>
+  );
+}
+
+// Touch/pointer friendly drag-to-reorder list used in reorder mode.
+function ReorderList({
+  orders,
+  onChange,
+  onDone,
+}: {
+  orders: Order[];
+  onChange: (ids: string[]) => void;
+  onDone: () => void;
+}) {
+  const [items, setItems] = useState<Order[]>(orders);
+  const dragIndex = useRef<number | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setItems(orders);
+  }, [orders]);
+
+  const commit = (next: Order[]) => {
+    setItems(next);
+    onChange(next.map((o) => o.id));
+  };
+
+  const move = (from: number, to: number) => {
+    if (to < 0 || to >= items.length || from === to) return;
+    const next = [...items];
+    const [m] = next.splice(from, 1);
+    next.splice(to, 0, m);
+    commit(next);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (dragIndex.current == null || !containerRef.current) return;
+    const cards = Array.from(
+      containerRef.current.querySelectorAll<HTMLElement>("[data-reorder-card]")
+    );
+    const y = e.clientY;
+    let target = dragIndex.current;
+    for (let i = 0; i < cards.length; i++) {
+      const rect = cards[i].getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      if (y < mid) {
+        target = i;
+        break;
+      }
+      target = i;
+    }
+    if (target !== dragIndex.current) {
+      move(dragIndex.current, target);
+      dragIndex.current = target;
+    }
+  };
+
+  const endDrag = () => {
+    dragIndex.current = null;
+    setDragId(null);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-lg bg-primary/10 border border-primary/20 px-3 py-2 text-xs text-foreground">
+        Бариулаас чирэх эсвэл ↑ ↓ товчоор хүргэлтийн дарааллыг өөрчилнө. Дууссаны дараа “Дуусгах” дарна уу.
+      </div>
+      <div ref={containerRef} className="space-y-2">
+        {items.map((order, index) => {
+          const district = resolveDistrict(order);
+          return (
+            <div
+              key={order.id}
+              data-reorder-card
+              className={cn(
+                "flex items-center gap-2 rounded-xl border bg-card p-2.5 transition-shadow select-none",
+                dragId === order.id ? "border-primary shadow-lg ring-2 ring-primary/30" : "border-border"
+              )}
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
+                {index + 1}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-foreground truncate">{order.customer_name}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {[district, order.address_text].filter(Boolean).join(", ") || order.phone}
+                </p>
+              </div>
+              <div className="flex flex-col">
+                <button
+                  onClick={() => move(index, index - 1)}
+                  disabled={index === 0}
+                  className="p-1 text-muted-foreground disabled:opacity-30"
+                  aria-label="Дээш"
+                >
+                  <ArrowUp className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => move(index, index + 1)}
+                  disabled={index === items.length - 1}
+                  className="p-1 text-muted-foreground disabled:opacity-30"
+                  aria-label="Доош"
+                >
+                  <ArrowDown className="h-4 w-4" />
+                </button>
+              </div>
+              <button
+                className="p-1.5 text-muted-foreground touch-none cursor-grab active:cursor-grabbing"
+                aria-label="Чирэх"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  dragIndex.current = index;
+                  setDragId(order.id);
+                  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                }}
+                onPointerMove={onPointerMove}
+                onPointerUp={endDrag}
+                onPointerCancel={endDrag}
+              >
+                <GripVertical className="h-5 w-5" />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      <button
+        onClick={onDone}
+        className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground"
+      >
+        <Check className="h-4 w-4" />
+        Дуусгах
+      </button>
     </div>
   );
 }
