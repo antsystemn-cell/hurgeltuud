@@ -85,6 +85,40 @@ export async function applyPaymentUpdate(input: PaymentUpdateInput): Promise<voi
   }
 }
 
+// ---- Delivery outcome (driver records reason + note + mandatory proof photo) ----
+export type DeliveryOutcomeInput = {
+  orderId: string;
+  status: FulfillmentStatus; // "delivered" | "cancelled"
+  outcome: string;
+  note: string;
+  proofUrl: string;
+  userId: string;
+};
+
+export async function applyDeliveryOutcome(input: DeliveryOutcomeInput): Promise<void> {
+  const key = `outcome:${input.orderId}:${input.status}`;
+  if (inFlight.has(key)) throw new DuplicateActionError();
+  inFlight.add(key);
+  try {
+    const updates: Record<string, unknown> = {
+      fulfillment_status: input.status,
+      delivery_outcome: input.outcome,
+      delivery_outcome_note: input.note,
+      delivery_proof_url: input.proofUrl,
+      delivery_outcome_at: new Date().toISOString(),
+      delivery_outcome_by: input.userId,
+      updated_by_user_id: input.userId,
+    };
+    if (input.status === "delivered") updates.delivered_at = new Date().toISOString();
+    if (input.status === "cancelled") updates.cancelled_at = new Date().toISOString();
+    const { error } = await supabase.from("orders").update(updates as never).eq("id", input.orderId);
+    if (error) throw error;
+    fireShopWebhook(input.orderId);
+  } finally {
+    inFlight.delete(key);
+  }
+}
+
 // ---- Offline queue ----
 const QUEUE_KEY = "swift_offline_queue_v1";
 
