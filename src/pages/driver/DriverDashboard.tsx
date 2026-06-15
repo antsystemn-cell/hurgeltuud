@@ -509,16 +509,44 @@ export default function DriverDashboard() {
                   )}
                 </div>
 
-                {/* Fulfillment action — opens the outcome dialog (reason + note + photo) */}
+                {/* Fulfillment actions */}
                 {order.fulfillment_status !== "delivered" && order.fulfillment_status !== "cancelled" && (
-                  <button
-                    onClick={() => setOutcomeOrder(order)}
-                    disabled={updateStatus.isPending}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
-                  >
-                    <ClipboardCheck className="h-5 w-5" />
-                    Хүргэлтийн үр дүн бүртгэх
-                  </button>
+                  <div className="space-y-2">
+                    {/* Quick deliver — no extra info needed */}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button
+                          disabled={updateStatus.isPending}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-green-600 text-white text-sm font-semibold disabled:opacity-50"
+                        >
+                          <CheckCircle2 className="h-5 w-5" />
+                          Хүргэсэн
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Хүргэсэн гэж тэмдэглэх үү?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {order.customer_name} — {order.internal_order_number} захиалгыг хүргэсэн гэж тэмдэглэнэ.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Үгүй</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleMarkDelivered(order.id)}>Тийм</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    {/* Detailed outcome (reason + note + photo) */}
+                    <button
+                      onClick={() => setOutcomeOrder(order)}
+                      disabled={updateStatus.isPending}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-secondary text-secondary-foreground text-sm font-semibold disabled:opacity-50"
+                    >
+                      <ClipboardCheck className="h-5 w-5" />
+                      Дэлгэрэнгүй үр дүн бүртгэх
+                    </button>
+                  </div>
                 )}
 
                 {/* Recorded outcome (for finished orders) */}
