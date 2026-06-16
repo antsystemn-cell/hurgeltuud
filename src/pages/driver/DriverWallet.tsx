@@ -5,7 +5,7 @@ import {
   useWalletTransactions,
   useWithdrawalRequests,
   useCreateWithdrawalRequest,
-  useDriverShopEarnings,
+  useDriverShopSettlement,
   TX_TYPE_LABELS,
   WITHDRAWAL_STATUS_LABELS,
 } from "@/hooks/useWallet";
