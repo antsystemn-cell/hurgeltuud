@@ -61,16 +61,16 @@ export function useAllDriverWallets() {
   });
 }
 
-export function useWalletTransactions(driverUserId: string) {
+export function useWalletTransactions(driverUserId: string, limit = 50) {
   return useQuery({
-    queryKey: ["wallet_transactions", driverUserId],
+    queryKey: ["wallet_transactions", driverUserId, limit],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("wallet_transactions")
         .select("*")
         .eq("driver_user_id", driverUserId)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(limit);
       if (error) throw error;
       return data || [];
     },
@@ -156,40 +156,94 @@ export function useWithdrawalRequests(driverUserId?: string) {
 }
 
 export type ShopSettlement = ShopEarning & {
-  withdrawn: number; // completed withdrawals attributed to this shop (Татсан)
+  withdrawn: number; // amount already withdrawn attributed to this shop (Татсан)
   pending: number; // pending/approved withdrawal requests for this shop
-  outstanding: number; // still to be settled = earned - withdrawn (Хүлээгдэж буй)
+  outstanding: number; // still to be settled = earned - withdrawn - pending (Хүлээгдэж буй)
 };
 
-// Combines a driver's per-shop earnings with their withdrawal requests so each
-// shop can be shown as: total earned (Бүгд), withdrawn (Татсан) and the
+// Combines a driver's per-shop earnings with their actual wallet withdrawals so
+// each shop can be shown as: total earned (Бүгд), withdrawn (Татсан) and the
 // outstanding amount still to be settled (Хүлээгдэж буй).
-// Withdrawals are attributed to a shop via the request note saved at creation.
+//
+// Reliability is critical (real money), so the breakdown ALWAYS reconciles with
+// the wallet's authoritative totals:
+//   sum(withdrawn)   === wallet.total_withdrawn
+//   sum(outstanding) === wallet.balance - pending
+// Withdrawals are first attributed to a shop via the request note (saved at
+// creation). Any remaining withdrawal that cannot be matched to a shop (e.g. an
+// admin bank transfer, or an old request with no note) is distributed across the
+// shops proportionally to their remaining (un-withdrawn) earnings, so no money
+// is ever lost from the "Татсан" view.
 export function useDriverShopSettlement(driverUserId: string) {
   const earningsQ = useDriverShopEarnings(driverUserId);
   const withdrawalsQ = useWithdrawalRequests(driverUserId);
+  const walletQ = useDriverWallet(driverUserId);
 
   const data = useMemo<ShopSettlement[] | undefined>(() => {
     if (!earningsQ.data) return undefined;
+    const shops = earningsQ.data;
     const reqs = withdrawalsQ.data || [];
-    return earningsQ.data.map((shop) => {
-      const matched = reqs.filter((r) => (r.note || "").startsWith(shop.name));
-      const withdrawn = matched
-        .filter((r) => r.status === "completed")
-        .reduce((s, r) => s + Number(r.amount), 0);
-      const pending = matched
-        .filter((r) => r.status === "pending" || r.status === "approved")
-        .reduce((s, r) => s + Number(r.amount), 0);
-      return {
-        ...shop,
-        withdrawn,
-        pending,
-        outstanding: Math.max(shop.total - withdrawn, 0),
-      };
-    });
-  }, [earningsQ.data, withdrawalsQ.data]);
+    const wallet = walletQ.data;
 
-  return { data, isLoading: earningsQ.isLoading || withdrawalsQ.isLoading };
+    // Authoritative totals come from the wallet ledger, not from notes.
+    const totalWithdrawn = Number(wallet?.total_withdrawn || 0);
+    const totalPending = reqs
+      .filter((r) => r.status === "pending" || r.status === "approved")
+      .reduce((s, r) => s + Number(r.amount), 0);
+
+    // Step 1: attribute what we can to a specific shop via the request note.
+    const attrWithdrawn = new Map<string, number>();
+    const attrPending = new Map<string, number>();
+    for (const shop of shops) {
+      const matched = reqs.filter((r) => (r.note || "").startsWith(shop.name));
+      attrWithdrawn.set(
+        shop.code,
+        matched
+          .filter((r) => r.status === "completed")
+          .reduce((s, r) => s + Number(r.amount), 0)
+      );
+      attrPending.set(
+        shop.code,
+        matched
+          .filter((r) => r.status === "pending" || r.status === "approved")
+          .reduce((s, r) => s + Number(r.amount), 0)
+      );
+    }
+
+    const sumAttrWithdrawn = Array.from(attrWithdrawn.values()).reduce((a, b) => a + b, 0);
+    const sumAttrPending = Array.from(attrPending.values()).reduce((a, b) => a + b, 0);
+
+    // Step 2: whatever is left unattributed must still be accounted for.
+    const unattrWithdrawn = Math.max(totalWithdrawn - sumAttrWithdrawn, 0);
+    const unattrPending = Math.max(totalPending - sumAttrPending, 0);
+
+    // Step 3: distribute the unattributed part across shops, weighted by each
+    // shop's remaining (un-withdrawn) earnings so totals always reconcile.
+    const remaining = shops.map((s) =>
+      Math.max(s.total - (attrWithdrawn.get(s.code) || 0) - (attrPending.get(s.code) || 0), 0)
+    );
+    const totalRemaining = remaining.reduce((a, b) => a + b, 0);
+
+    return shops.map((shop, i) => {
+      const aw = attrWithdrawn.get(shop.code) || 0;
+      const ap = attrPending.get(shop.code) || 0;
+      const frac =
+        totalRemaining > 0
+          ? remaining[i] / totalRemaining
+          : shops.length > 0
+            ? 1 / shops.length
+            : 0;
+      const withdrawn = aw + unattrWithdrawn * frac;
+      const pending = ap + unattrPending * frac;
+      const outstanding = Math.max(shop.total - withdrawn - pending, 0);
+      return { ...shop, withdrawn, pending, outstanding };
+    });
+  }, [earningsQ.data, withdrawalsQ.data, walletQ.data]);
+
+  return {
+    data,
+    isLoading: earningsQ.isLoading || withdrawalsQ.isLoading || walletQ.isLoading,
+  };
 }
 
 export function useCreateWithdrawalRequest() {

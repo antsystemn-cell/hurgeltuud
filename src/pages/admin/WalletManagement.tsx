@@ -70,7 +70,7 @@ export default function WalletManagement() {
 
   // Driver transaction detail dialog
   const [viewDriverId, setViewDriverId] = useState<string | null>(null);
-  const { data: viewTxs } = useWalletTransactions(viewDriverId || "");
+  const { data: viewTxs } = useWalletTransactions(viewDriverId || "", 1000);
 
   const getDriverName = (driverUserId: string) => {
     const driver = drivers?.find((d) => d.user_id === driverUserId);

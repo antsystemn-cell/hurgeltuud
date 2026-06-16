@@ -35,7 +35,9 @@ export function ShopEarningsBreakdown({ driverUserId, className }: Props) {
   }
 
   const valueFor = (s: (typeof shops)[number]) =>
-    view === "all" ? s.total : view === "pending" ? s.outstanding : s.withdrawn;
+    Math.round(
+      view === "all" ? s.total : view === "pending" ? s.outstanding : s.withdrawn
+    );
 
   const amountColor =
     view === "withdrawn"
