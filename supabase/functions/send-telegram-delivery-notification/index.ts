@@ -178,7 +178,10 @@ Deno.serve(async (req) => {
         editError = (e as Error).message || "Telegram edit request failed";
       }
 
-      if (editOk) {
+      // "message is not modified" means the content is already up to date — treat as success.
+      const notModified = editError.toLowerCase().includes("message is not modified");
+
+      if (editOk || notModified) {
         await admin
           .from("orders")
           .update({
