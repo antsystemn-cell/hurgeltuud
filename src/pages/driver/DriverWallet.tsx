@@ -169,29 +169,32 @@ export default function DriverWallet() {
             <div className="bg-card border border-border rounded-xl p-4 space-y-3">
               <h3 className="font-medium text-foreground text-sm">Мөнгө татах хүсэлт</h3>
               <div className="space-y-2">
-                {shopEarnings && shopEarnings.length > 0 && (
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">Дэлгүүрээр сонгох</label>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Аль дэлгүүрийн төлбөр <span className="text-destructive">*</span></label>
+                  {settleableShops.length > 0 ? (
                     <Select value={shopFilter} onValueChange={handleShopSelect}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Бүх дэлгүүр" />
+                        <SelectValue placeholder="Дэлгүүр сонгох" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Бүх дэлгүүр</SelectItem>
-                        {shopEarnings.map((s) => (
+                        {settleableShops.map((s) => (
                           <SelectItem key={s.code} value={s.code}>
-                            {s.name} — ₮{s.total.toLocaleString()}
+                            {s.name} — ₮{s.outstanding.toLocaleString()}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {selectedShopName && (
-                      <p className="text-[11px] text-muted-foreground">
-                        {selectedShopName} хүргэлтийн нийт төлбөр бөглөгдлөө. Дүнгээ багасгаж засварлах боломжтой.
-                      </p>
-                    )}
-                  </div>
-                )}
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">
+                      Татах боломжтой дэлгүүрийн үлдэгдэл алга байна.
+                    </p>
+                  )}
+                  {selectedShopName && (
+                    <p className="text-[11px] text-muted-foreground">
+                      {selectedShopName} хүргэлтийн төлбөр бөглөгдлөө. Дүнгээ багасгаж засварлах боломжтой.
+                    </p>
+                  )}
+                </div>
                 <Input
                   type="number"
                   placeholder={`Дүн (хамгийн ихдээ ₮${balance.toLocaleString()})`}
