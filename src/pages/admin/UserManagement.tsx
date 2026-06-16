@@ -27,11 +27,14 @@ interface UserRow {
   active: boolean;
   created_at: string;
   roles: string[];
+  telegram_chat_id?: string | null;
+  telegram_enabled?: boolean | null;
 }
 
 export default function UserManagement() {
   const qc = useQueryClient();
   const { user: currentUser } = useAuth();
+  const sendTelegramTest = useSendTelegramTest();
 
   // Create form
   const [email, setEmail] = useState("");
@@ -44,6 +47,8 @@ export default function UserManagement() {
   const [editUser, setEditUser] = useState<UserRow | null>(null);
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editTgChatId, setEditTgChatId] = useState("");
+  const [editTgEnabled, setEditTgEnabled] = useState(true);
 
   // Role dialog
   const [roleUser, setRoleUser] = useState<UserRow | null>(null);
