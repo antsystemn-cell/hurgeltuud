@@ -110,11 +110,30 @@ serve(async (req) => {
     let lastError: string | null = null;
 
     // === Only Hub (only_merchants_hub) outbound webhook ===
-    // Only OMH- prefixed orders are sent to Only Hub, and only when a webhook URL is configured.
-    const onlyHubUrl = sourceSystem?.webhook_url || Deno.env.get("ONLY_HUB_WEBHOOK_URL") || null;
-    const onlyHubKey = sourceSystem?.webhook_secret || Deno.env.get("ONLY_HUB_WEBHOOK_KEY") || null;
+    // Only OMH- prefixed orders are sent to Only Hub.
+    // Both the production (only.mn) and the stable Lovable endpoint are tried,
+    // so a status update succeeds as long as either host is reachable.
+    const ONLY_HUB_URLS = [
+      "https://only.mn/api/public/delivery/webhook",
+      "https://only-hub.lovable.app/api/public/delivery/webhook",
+    ];
+    // Build the target list: a DB-configured webhook_url (if any) takes priority,
+    // then the two known defaults (deduped). An env override is honored too.
+    const onlyHubUrls = Array.from(
+      new Set(
+        [
+          sourceSystem?.webhook_url || null,
+          Deno.env.get("ONLY_HUB_WEBHOOK_URL") || null,
+          ...ONLY_HUB_URLS,
+        ].filter((u): u is string => !!u),
+      ),
+    );
+    // Platform-wide API key (preferred) sent as x-api-key. Falls back to the
+    // per-merchant secret stored on the source system if the key isn't set.
+    const onlyHubKey =
+      Deno.env.get("SWIFT_DELIVERY_API_KEY") || sourceSystem?.webhook_secret || null;
 
-    if (isOmhOrder && onlyHubUrl) {
+    if (isOmhOrder && onlyHubUrls.length > 0) {
       anyAttempt = true;
 
       // Resolve driver info (minimal PII: id, name, phone)
