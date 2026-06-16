@@ -12,6 +12,7 @@ import {
   WITHDRAWAL_STATUS_LABELS,
 } from "@/hooks/useWallet";
 import { useDrivers } from "@/hooks/useOrders";
+import { ShopEarningsBreakdown } from "@/components/driver/ShopEarningsBreakdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
