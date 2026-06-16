@@ -159,11 +159,43 @@ export default function DriverWallet() {
             </div>
           </div>
 
+          {/* Earnings broken down per shop */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Store className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-medium text-foreground">Дэлгүүр тус бүрийн орлого</h3>
+            </div>
+            <ShopEarningsBreakdown driverUserId={userId} />
+          </div>
+
           {/* Withdrawal form */}
           {wallet && balance > 0 && (
             <div className="bg-card border border-border rounded-xl p-4 space-y-3">
               <h3 className="font-medium text-foreground text-sm">Мөнгө татах хүсэлт</h3>
               <div className="space-y-2">
+                {shopEarnings && shopEarnings.length > 0 && (
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Дэлгүүрээр сонгох</label>
+                    <Select value={shopFilter} onValueChange={handleShopSelect}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Бүх дэлгүүр" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Бүх дэлгүүр</SelectItem>
+                        {shopEarnings.map((s) => (
+                          <SelectItem key={s.code} value={s.code}>
+                            {s.name} — ₮{s.total.toLocaleString()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedShopName && (
+                      <p className="text-[11px] text-muted-foreground">
+                        {selectedShopName} хүргэлтийн нийт төлбөр бөглөгдлөө. Дүнгээ багасгаж засварлах боломжтой.
+                      </p>
+                    )}
+                  </div>
+                )}
                 <Input
                   type="number"
                   placeholder={`Дүн (хамгийн ихдээ ₮${balance.toLocaleString()})`}
