@@ -128,9 +128,14 @@ Deno.serve(async (req) => {
       : "-";
     const address = [order.district, order.address_text].filter(Boolean).join(", ") || "-";
     const fee = formatFee(order.total_amount ?? order.delivery_fee);
+    const shopName =
+      (order.source_systems as { name?: string } | null)?.name ||
+      order.source_channel ||
+      "-";
 
     const messageText =
       `🚚 <b>Шинэ хүргэлтийн захиалга орлоо!</b>\n\n` +
+      `🏪 Дэлгүүр: ${escapeHtml(show(shopName))}\n` +
       `👤 Хүлээн авагч: ${escapeHtml(show(order.phone))}\n` +
       `📦 Бараа: ${escapeHtml(productName)}\n` +
       `📍 Хаяг: ${escapeHtml(address)}\n` +
