@@ -58,14 +58,22 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
 
-    // Verify caller is a signed-in user (staff or the assigned driver).
-    const callerClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user: caller } } = await callerClient.auth.getUser();
-    if (!caller) return jsonResponse({ error: "Invalid session" }, 401);
-
     const admin = createClient(supabaseUrl, serviceRoleKey);
+
+    // ---- Auth: either an internal service-role call (server-to-server, e.g.
+    // partner-portal assigning a driver) OR a signed-in staff/driver user. ----
+    const bearer = authHeader.replace(/^Bearer\s+/i, "").trim();
+    const isInternal = bearer === serviceRoleKey;
+
+    let caller: { id: string } | null = null;
+    if (!isInternal) {
+      const callerClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: { user } } = await callerClient.auth.getUser();
+      if (!user) return jsonResponse({ error: "Invalid session" }, 401);
+      caller = user;
+    }
 
     const body = await req.json().catch(() => ({}));
     const orderId = body?.orderId;
