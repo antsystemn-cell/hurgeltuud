@@ -61,16 +61,16 @@ export function useAllDriverWallets() {
   });
 }
 
-export function useWalletTransactions(driverUserId: string) {
+export function useWalletTransactions(driverUserId: string, limit = 50) {
   return useQuery({
-    queryKey: ["wallet_transactions", driverUserId],
+    queryKey: ["wallet_transactions", driverUserId, limit],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("wallet_transactions")
         .select("*")
         .eq("driver_user_id", driverUserId)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(limit);
       if (error) throw error;
       return data || [];
     },
