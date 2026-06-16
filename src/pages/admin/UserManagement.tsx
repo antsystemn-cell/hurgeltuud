@@ -231,7 +231,7 @@ export default function UserManagement() {
                 <Button
                   variant="ghost" size="icon" className="h-8 w-8"
                   title="Засах"
-                  onClick={() => { setEditUser(u); setEditName(u.full_name); setEditPhone(u.phone || ""); }}
+                  onClick={() => { setEditUser(u); setEditName(u.full_name); setEditPhone(u.phone || ""); setEditTgChatId(u.telegram_chat_id || ""); setEditTgEnabled(u.telegram_enabled !== false); }}
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
