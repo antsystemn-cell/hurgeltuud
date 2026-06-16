@@ -168,7 +168,7 @@ export function useAssignDriver() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ orderId, driverId, userId }: { orderId: string; driverId: string | null; userId: string }) => {
-      const updates: Record<string, unknown> = {
+      const updates: Database["public"]["Tables"]["orders"]["Update"] = {
         assigned_driver_user_id: driverId,
         updated_by_user_id: userId,
       };
