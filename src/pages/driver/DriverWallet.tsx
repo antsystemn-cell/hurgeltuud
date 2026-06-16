@@ -227,7 +227,7 @@ export default function DriverWallet() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Мөнгө татах уу?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      ₮{Number(withdrawAmount || 0).toLocaleString()} татах хүсэлт илгээх гэж байна. Админ зөвшөөрсний дараа банкны данс руу шилжүүлнэ.
+                      {selectedShopName ? `${selectedShopName} — ` : ""}₮{Number(withdrawAmount || 0).toLocaleString()} татах хүсэлт илгээх гэж байна. Админ зөвшөөрсний дараа банкны данс руу шилжүүлнэ.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
