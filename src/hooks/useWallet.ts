@@ -155,6 +155,43 @@ export function useWithdrawalRequests(driverUserId?: string) {
   });
 }
 
+export type ShopSettlement = ShopEarning & {
+  withdrawn: number; // completed withdrawals attributed to this shop (Татсан)
+  pending: number; // pending/approved withdrawal requests for this shop
+  outstanding: number; // still to be settled = earned - withdrawn (Хүлээгдэж буй)
+};
+
+// Combines a driver's per-shop earnings with their withdrawal requests so each
+// shop can be shown as: total earned (Бүгд), withdrawn (Татсан) and the
+// outstanding amount still to be settled (Хүлээгдэж буй).
+// Withdrawals are attributed to a shop via the request note saved at creation.
+export function useDriverShopSettlement(driverUserId: string) {
+  const earningsQ = useDriverShopEarnings(driverUserId);
+  const withdrawalsQ = useWithdrawalRequests(driverUserId);
+
+  const data = useMemo<ShopSettlement[] | undefined>(() => {
+    if (!earningsQ.data) return undefined;
+    const reqs = withdrawalsQ.data || [];
+    return earningsQ.data.map((shop) => {
+      const matched = reqs.filter((r) => (r.note || "").startsWith(shop.name));
+      const withdrawn = matched
+        .filter((r) => r.status === "completed")
+        .reduce((s, r) => s + Number(r.amount), 0);
+      const pending = matched
+        .filter((r) => r.status === "pending" || r.status === "approved")
+        .reduce((s, r) => s + Number(r.amount), 0);
+      return {
+        ...shop,
+        withdrawn,
+        pending,
+        outstanding: Math.max(shop.total - withdrawn, 0),
+      };
+    });
+  }, [earningsQ.data, withdrawalsQ.data]);
+
+  return { data, isLoading: earningsQ.isLoading || withdrawalsQ.isLoading };
+}
+
 export function useCreateWithdrawalRequest() {
   const qc = useQueryClient();
   return useMutation({
