@@ -73,6 +73,7 @@ export async function applyStatusUpdate(input: StatusUpdateInput): Promise<void>
     const { error } = await supabase.from("orders").update(buildStatusUpdates(input) as never).eq("id", input.orderId);
     if (error) throw error;
     fireShopWebhook(input.orderId);
+    fireTelegramSync(input.orderId);
   } finally {
     inFlight.delete(key);
   }
