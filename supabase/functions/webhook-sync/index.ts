@@ -148,17 +148,25 @@ serve(async (req) => {
         anySuccess = true; // already synced — treat as success
       } else {
         const isCompletion = omhStatus === "delivered" || omhStatus === "cancelled";
+        const nowIso = new Date().toISOString();
         const payload: Record<string, unknown> = {
           // delivered/cancelled is the trigger for Only Hub to run SMS / QPay /
           // payment collection. Delivery Hub stays logistics-only.
           event: isCompletion ? "delivery.completed" : "delivery.status_changed",
           event_id: eventId,
           external_order_id: order.external_order_id,
+          delivery_order_id: order.id,
+          tracking_code: order.internal_order_number,
           internal_order_number: order.internal_order_number,
           fulfillment_status: omhStatus,
           status: omhStatus,
+          // Flat driver fields (Only Hub merchant admin display) + nested for back-compat.
+          driver_id: driver?.id ?? null,
+          driver_name: driver?.name ?? null,
+          driver_phone: driver?.phone ?? null,
           driver,
-          timestamp: new Date().toISOString(),
+          updated_at: nowIso,
+          timestamp: nowIso,
           note: order.delivery_note || null,
         };
         // payment_collected_in_cash is a logistics flag reported on delivered;
@@ -175,7 +183,8 @@ serve(async (req) => {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              ...(onlyHubKey ? { "x-api-key": onlyHubKey } : {}),
+              // Support both header conventions; Only Hub can validate either.
+              ...(onlyHubKey ? { "x-api-key": onlyHubKey, "X-OnlyHub-Webhook-Secret": onlyHubKey } : {}),
             },
             body: JSON.stringify(payload),
           });
