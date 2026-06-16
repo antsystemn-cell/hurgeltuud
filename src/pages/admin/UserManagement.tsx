@@ -95,7 +95,7 @@ export default function UserManagement() {
   });
 
   const manageUser = useMutation({
-    mutationFn: async (body: Record<string, string>) => {
+    mutationFn: async (body: Record<string, string | boolean>) => {
       const response = await supabase.functions.invoke("admin-manage-user", { body });
       if (response.error) throw new Error(response.error.message);
       if (response.data?.error) throw new Error(response.data.error);
