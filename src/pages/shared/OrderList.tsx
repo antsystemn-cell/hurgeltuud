@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { useOrders, useDrivers, useSourceSystems, useMerchants, useUpdateOrderStatus, useAssignDriver, useUpdatePaymentStatus, useDeleteOrder, useUpdateOrderAddress, useManualRetrySync, FULFILLMENT_LABELS, PAYMENT_LABELS, type FulfillmentStatus, type PaymentStatus } from "@/hooks/useOrders";
+import { useOrders, useDrivers, useSourceSystems, useMerchants, useUpdateOrderStatus, useAssignDriver, useUpdatePaymentStatus, useDeleteOrder, useUpdateOrderAddress, useManualRetrySync, useResendTelegramNotification, FULFILLMENT_LABELS, PAYMENT_LABELS, type FulfillmentStatus, type PaymentStatus } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Phone, Trash2, Printer, Pencil, Check, X, Store, RefreshCw, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
+import { Search, Phone, Trash2, Printer, Pencil, Check, X, Store, RefreshCw, AlertTriangle, Send } from "lucide-react";
 import { STATUS_BORDER_COLORS, STATUS_BG_COLORS, formatOrderDate, detectDistrict } from "@/lib/orderHelpers";
 
 const DISTRICTS = ["БЗД", "БГД", "СХД", "ЧД", "ХУД", "НД"];
@@ -102,6 +103,34 @@ export default function OrderList() {
   const deleteOrder = useDeleteOrder();
   const retrySync = useManualRetrySync();
   const updateAddress = useUpdateOrderAddress();
+  const resendTelegram = useResendTelegramNotification();
+
+  const handleAssign = (orderId: string, driverId: string) => {
+    if (!user) return;
+    assignDriver.mutate(
+      { orderId, driverId, userId: user.id },
+      {
+        onSuccess: ({ telegram }) => {
+          if (!telegram) return;
+          if (telegram.sent) toast.success("Telegram мэдэгдэл амжилттай илгээгдлээ.");
+          else if (telegram.skipped) toast.message("Telegram мэдэгдэл илгээгдсэнгүй: chat ID тохируулаагүй байна.");
+          else if (telegram.error) toast.warning("Захиалга жолоочид оноогдсон. Харин Telegram мэдэгдэл илгээхэд алдаа гарлаа.");
+        },
+        onError: (e) => toast.error((e as Error).message),
+      }
+    );
+  };
+
+  const handleResendTelegram = (orderId: string) => {
+    resendTelegram.mutate(orderId, {
+      onSuccess: (telegram) => {
+        if (telegram?.sent) toast.success("Telegram мэдэгдэл дахин илгээгдлээ.");
+        else if (telegram?.skipped) toast.message(`Telegram илгээгдсэнгүй: ${telegram.skipped}`);
+        else toast.warning(`Telegram алдаа: ${telegram?.error || "тодорхойгүй"}`);
+      },
+      onError: (e) => toast.error((e as Error).message),
+    });
+  };
 
 
   return (
@@ -260,7 +289,7 @@ export default function OrderList() {
                       </Select>
                       <Select
                         value={order.assigned_driver_user_id || ""}
-                        onValueChange={(val) => user && assignDriver.mutate({ orderId: order.id, driverId: val, userId: user.id })}
+                        onValueChange={(val) => handleAssign(order.id, val)}
                       >
                         <SelectTrigger className="w-[160px] h-9 text-xs"><SelectValue placeholder="Жолооч" /></SelectTrigger>
                         <SelectContent>
@@ -271,6 +300,19 @@ export default function OrderList() {
                           ))}
                         </SelectContent>
                       </Select>
+                      {order.assigned_driver_user_id && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 text-xs gap-1"
+                          onClick={() => handleResendTelegram(order.id)}
+                          disabled={resendTelegram.isPending}
+                          title="Telegram мэдэгдлийг дахин илгээх"
+                        >
+                          <Send className="h-3.5 w-3.5" />
+                          Telegram дахин
+                        </Button>
+                      )}
                       <Select
                         value={order.district || detectDistrict(order.address_text) || ""}
                         onValueChange={(val) => user && updateAddress.mutate({ orderId: order.id, district: val, addressText: order.address_text || "", userId: user.id })}

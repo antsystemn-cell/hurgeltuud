@@ -59,12 +59,17 @@ Deno.serve(async (req) => {
 
     // ── UPDATE PROFILE ──
     if (action === "update_profile") {
-      const { user_id, full_name, phone } = body;
+      const { user_id, full_name, phone, telegram_chat_id, telegram_enabled } = body;
       if (!user_id) return jsonResponse({ error: "user_id required" }, 400);
 
-      const updates: Record<string, string> = {};
+      const updates: Record<string, unknown> = {};
       if (full_name !== undefined) updates.full_name = full_name;
       if (phone !== undefined) updates.phone = phone;
+      // Telegram settings (additive — only applied when explicitly provided).
+      if (telegram_chat_id !== undefined) {
+        updates.telegram_chat_id = telegram_chat_id === "" ? null : telegram_chat_id;
+      }
+      if (telegram_enabled !== undefined) updates.telegram_enabled = !!telegram_enabled;
 
       if (Object.keys(updates).length === 0) return jsonResponse({ error: "Nothing to update" }, 400);
 

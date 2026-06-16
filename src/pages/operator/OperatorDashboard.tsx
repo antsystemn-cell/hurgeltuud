@@ -12,6 +12,7 @@ import {
 } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Phone, Search } from "lucide-react";
@@ -50,7 +51,22 @@ export default function OperatorDashboard() {
 
   const handleAssign = (orderId: string, driverId: string) => {
     if (!user) return;
-    assignDriver.mutate({ orderId, driverId, userId: user.id });
+    assignDriver.mutate(
+      { orderId, driverId, userId: user.id },
+      {
+        onSuccess: ({ telegram }) => {
+          if (!telegram) return;
+          if (telegram.sent) {
+            toast.success("Telegram мэдэгдэл амжилттай илгээгдлээ.");
+          } else if (telegram.skipped) {
+            toast.message("Telegram мэдэгдэл илгээгдсэнгүй: chat ID тохируулаагүй байна.");
+          } else if (telegram.error) {
+            toast.warning("Захиалга жолоочид оноогдсон. Харин Telegram мэдэгдэл илгээхэд алдаа гарлаа.");
+          }
+        },
+        onError: (e) => toast.error((e as Error).message),
+      }
+    );
   };
 
   return (

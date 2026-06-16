@@ -4,12 +4,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
-import { Pencil, Trash2, KeyRound, Shield } from "lucide-react";
+import { useSendTelegramTest } from "@/hooks/useOrders";
+import { Pencil, Trash2, KeyRound, Shield, Send } from "lucide-react";
 
 const ROLE_LABELS: Record<string, string> = {
   main_admin: "Админ",
@@ -25,11 +27,14 @@ interface UserRow {
   active: boolean;
   created_at: string;
   roles: string[];
+  telegram_chat_id?: string | null;
+  telegram_enabled?: boolean | null;
 }
 
 export default function UserManagement() {
   const qc = useQueryClient();
   const { user: currentUser } = useAuth();
+  const sendTelegramTest = useSendTelegramTest();
 
   // Create form
   const [email, setEmail] = useState("");
@@ -42,6 +47,8 @@ export default function UserManagement() {
   const [editUser, setEditUser] = useState<UserRow | null>(null);
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editTgChatId, setEditTgChatId] = useState("");
+  const [editTgEnabled, setEditTgEnabled] = useState(true);
 
   // Role dialog
   const [roleUser, setRoleUser] = useState<UserRow | null>(null);
@@ -88,7 +95,7 @@ export default function UserManagement() {
   });
 
   const manageUser = useMutation({
-    mutationFn: async (body: Record<string, string>) => {
+    mutationFn: async (body: Record<string, string | boolean>) => {
       const response = await supabase.functions.invoke("admin-manage-user", { body });
       if (response.error) throw new Error(response.error.message);
       if (response.data?.error) throw new Error(response.data.error);
@@ -102,10 +109,31 @@ export default function UserManagement() {
 
   const handleEdit = () => {
     if (!editUser) return;
+    const isDriver = editUser.roles.includes("driver");
     manageUser.mutate(
-      { action: "update_profile", user_id: editUser.user_id, full_name: editName, phone: editPhone },
+      {
+        action: "update_profile",
+        user_id: editUser.user_id,
+        full_name: editName,
+        phone: editPhone,
+        ...(isDriver
+          ? { telegram_chat_id: editTgChatId, telegram_enabled: editTgEnabled }
+          : {}),
+      },
       { onSuccess: () => { toast.success("Мэдээлэл шинэчлэгдлээ"); setEditUser(null); } }
     );
+  };
+
+  const handleSendTelegramTest = () => {
+    if (!editUser) return;
+    if (!editTgChatId.trim()) {
+      toast.error("Эхлээд Telegram group chat ID оруулна уу.");
+      return;
+    }
+    sendTelegramTest.mutate(editUser.user_id, {
+      onSuccess: () => toast.success("Telegram тест мессеж илгээгдлээ."),
+      onError: (e) => toast.error(`Telegram алдаа: ${(e as Error).message}`),
+    });
   };
 
   const handleRoleChange = () => {
@@ -203,7 +231,7 @@ export default function UserManagement() {
                 <Button
                   variant="ghost" size="icon" className="h-8 w-8"
                   title="Засах"
-                  onClick={() => { setEditUser(u); setEditName(u.full_name); setEditPhone(u.phone || ""); }}
+                  onClick={() => { setEditUser(u); setEditName(u.full_name); setEditPhone(u.phone || ""); setEditTgChatId(u.telegram_chat_id || ""); setEditTgEnabled(u.telegram_enabled !== false); }}
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
@@ -249,6 +277,41 @@ export default function UserManagement() {
               <Label>Утас</Label>
               <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
             </div>
+
+            {/* Telegram settings — drivers only */}
+            {editUser?.roles.includes("driver") && (
+              <div className="space-y-3 rounded-lg border border-border p-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Telegram мэдэгдэл</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Идэвхтэй</span>
+                    <Switch checked={editTgEnabled} onCheckedChange={setEditTgEnabled} />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Telegram group chat ID</Label>
+                  <Input
+                    value={editTgChatId}
+                    onChange={(e) => setEditTgChatId(e.target.value)}
+                    placeholder="-1001234567890"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Жолооч тус бүрт өөрийн Telegram group chat ID оруулна. Жишээ: -1001234567890
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={handleSendTelegramTest}
+                  disabled={sendTelegramTest.isPending}
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {sendTelegramTest.isPending ? "Илгээж байна..." : "Send test Telegram message"}
+                </Button>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditUser(null)}>Болих</Button>
