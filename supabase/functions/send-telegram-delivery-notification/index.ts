@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
     // Fetch the order + line items.
     const { data: order, error: orderErr } = await admin
       .from("orders")
-      .select("*, order_items(product_name_snapshot, quantity)")
+      .select("*, order_items(product_name_snapshot, quantity), source_systems(name)")
       .eq("id", orderId)
       .maybeSingle();
     if (orderErr) return jsonResponse({ error: orderErr.message }, 400);
