@@ -110,11 +110,30 @@ serve(async (req) => {
     let lastError: string | null = null;
 
     // === Only Hub (only_merchants_hub) outbound webhook ===
-    // Only OMH- prefixed orders are sent to Only Hub, and only when a webhook URL is configured.
-    const onlyHubUrl = sourceSystem?.webhook_url || Deno.env.get("ONLY_HUB_WEBHOOK_URL") || null;
-    const onlyHubKey = sourceSystem?.webhook_secret || Deno.env.get("ONLY_HUB_WEBHOOK_KEY") || null;
+    // Only OMH- prefixed orders are sent to Only Hub.
+    // Both the production (only.mn) and the stable Lovable endpoint are tried,
+    // so a status update succeeds as long as either host is reachable.
+    const ONLY_HUB_URLS = [
+      "https://only.mn/api/public/delivery/webhook",
+      "https://only-hub.lovable.app/api/public/delivery/webhook",
+    ];
+    // Build the target list: a DB-configured webhook_url (if any) takes priority,
+    // then the two known defaults (deduped). An env override is honored too.
+    const onlyHubUrls = Array.from(
+      new Set(
+        [
+          sourceSystem?.webhook_url || null,
+          Deno.env.get("ONLY_HUB_WEBHOOK_URL") || null,
+          ...ONLY_HUB_URLS,
+        ].filter((u): u is string => !!u),
+      ),
+    );
+    // Platform-wide API key (preferred) sent as x-api-key. Falls back to the
+    // per-merchant secret stored on the source system if the key isn't set.
+    const onlyHubKey =
+      Deno.env.get("SWIFT_DELIVERY_API_KEY") || sourceSystem?.webhook_secret || null;
 
-    if (isOmhOrder && onlyHubUrl) {
+    if (isOmhOrder && onlyHubUrls.length > 0) {
       anyAttempt = true;
 
       // Resolve driver info (minimal PII: id, name, phone)
@@ -147,19 +166,20 @@ serve(async (req) => {
       if (priorLog) {
         anySuccess = true; // already synced — treat as success
       } else {
-        const isCompletion = omhStatus === "delivered" || omhStatus === "cancelled";
         const nowIso = new Date().toISOString();
         const payload: Record<string, unknown> = {
-          // delivered/cancelled is the trigger for Only Hub to run SMS / QPay /
-          // payment collection. Delivery Hub stays logistics-only.
-          event: isCompletion ? "delivery.completed" : "delivery.status_changed",
+          // Only Hub keys off fulfillment_status (delivered/completed) to run
+          // SMS / QPay / payment collection. Delivery Hub stays logistics-only.
+          event: "order.status_changed",
           event_id: eventId,
+          // OMH-<orderId> is Only Hub's primary lookup key.
           external_order_id: order.external_order_id,
           delivery_order_id: order.id,
           tracking_code: order.internal_order_number,
           internal_order_number: order.internal_order_number,
           fulfillment_status: omhStatus,
           status: omhStatus,
+          payment_status: order.payment_status,
           // Flat driver fields (Only Hub merchant admin display) + nested for back-compat.
           driver_id: driver?.id ?? null,
           driver_name: driver?.name ?? null,
@@ -175,28 +195,38 @@ serve(async (req) => {
           payload.payment_collected_in_cash = order.payment_collected_in_cash === true;
         }
 
+        // Try each Only Hub endpoint (only.mn, then Lovable) until one accepts.
         let omhSuccess = false;
         let omhStatusCode = 0;
         let omhBody = "";
-        try {
-          const res = await fetch(onlyHubUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              // Support both header conventions; Only Hub can validate either.
-              ...(onlyHubKey ? { "x-api-key": onlyHubKey, "X-OnlyHub-Webhook-Secret": onlyHubKey } : {}),
-            },
-            body: JSON.stringify(payload),
-          });
-          omhStatusCode = res.status;
-          omhBody = await res.text();
-          omhSuccess = res.ok;
-        } catch (err) {
-          omhBody = err instanceof Error ? err.message : "Fetch failed";
+        const attempts: string[] = [];
+        for (const url of onlyHubUrls) {
+          try {
+            const res = await fetch(url, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                // Platform-wide key + legacy per-merchant header; Only Hub validates either.
+                ...(onlyHubKey
+                  ? { "x-api-key": onlyHubKey, "x-webhook-secret": onlyHubKey, "X-OnlyHub-Webhook-Secret": onlyHubKey }
+                  : {}),
+              },
+              body: JSON.stringify(payload),
+            });
+            omhStatusCode = res.status;
+            omhBody = await res.text();
+            omhSuccess = res.ok;
+          } catch (err) {
+            omhStatusCode = 0;
+            omhBody = err instanceof Error ? err.message : "Fetch failed";
+            omhSuccess = false;
+          }
+          attempts.push(`${url} -> ${omhStatusCode}`);
+          if (omhSuccess) break; // first success wins
         }
 
         if (omhSuccess) anySuccess = true;
-        else lastError = `omh: ${omhStatusCode} ${omhBody}`;
+        else lastError = `omh: ${omhStatusCode} ${omhBody} [${attempts.join(" | ")}]`;
 
         // Upsert on event_id so a duplicate concurrent sync can't double-log.
         await supabase.from("webhook_logs").upsert({
@@ -206,7 +236,7 @@ serve(async (req) => {
           event_id: eventId,
           payload,
           response_status: omhStatusCode,
-          response_body: omhBody,
+          response_body: `${omhBody} [tried: ${attempts.join(" | ")}]`,
           success: omhSuccess,
           attempt_count: 1,
           next_retry_at: omhSuccess ? null : new Date(Date.now() + 60 * 1000).toISOString(),
