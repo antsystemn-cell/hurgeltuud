@@ -5,13 +5,22 @@ import {
   useWalletTransactions,
   useWithdrawalRequests,
   useCreateWithdrawalRequest,
+  useDriverShopEarnings,
   TX_TYPE_LABELS,
   WITHDRAWAL_STATUS_LABELS,
 } from "@/hooks/useWallet";
+import { ShopEarningsBreakdown } from "@/components/driver/ShopEarningsBreakdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Wallet, ArrowDownToLine, ArrowUpFromLine, Clock, TrendingUp, History } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Wallet, ArrowDownToLine, ArrowUpFromLine, Clock, TrendingUp, History, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
