@@ -304,7 +304,14 @@ export default function WalletManagement() {
           <DialogHeader>
             <DialogTitle>{viewDriverId ? getDriverName(viewDriverId) : ""} — Гүйлгээний түүх</DialogTitle>
           </DialogHeader>
+          {viewDriverId && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-foreground">Дэлгүүр тус бүрийн орлого</h4>
+              <ShopEarningsBreakdown driverUserId={viewDriverId} />
+            </div>
+          )}
           <div className="space-y-2">
+            <h4 className="text-sm font-medium text-foreground">Гүйлгээний түүх</h4>
             {!viewTxs?.length ? (
               <p className="text-sm text-muted-foreground text-center py-4">Гүйлгээ байхгүй</p>
             ) : (
