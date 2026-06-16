@@ -90,6 +90,7 @@ export async function applyPaymentUpdate(input: PaymentUpdateInput): Promise<voi
       .eq("id", input.orderId);
     if (error) throw error;
     fireShopWebhook(input.orderId);
+    fireTelegramSync(input.orderId);
   } finally {
     inFlight.delete(key);
   }
