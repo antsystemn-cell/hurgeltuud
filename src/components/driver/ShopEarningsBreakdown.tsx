@@ -1,18 +1,30 @@
-import { useDriverShopEarnings } from "@/hooks/useWallet";
+import { useState } from "react";
+import { useDriverShopSettlement } from "@/hooks/useWallet";
 import { Store, Package } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type Props = {
   driverUserId: string;
   className?: string;
 };
 
+type ViewKey = "all" | "pending" | "withdrawn";
+
+const VIEWS: { key: ViewKey; label: string }[] = [
+  { key: "all", label: "Бүгд" },
+  { key: "pending", label: "Хүлээгдэж буй" },
+  { key: "withdrawn", label: "Татсан" },
+];
+
 /**
- * Shows a driver's delivery earnings broken down per shop (merchant):
- * how many deliveries were done for each shop and the total earned.
+ * Shows a driver's delivery earnings broken down per shop (merchant).
+ * Each shop can be viewed by: total earned (Бүгд), the amount still to be
+ * settled (Хүлээгдэж буй) or the amount already withdrawn (Татсан).
  * Used in both the driver wallet page and the admin wallet detail dialog.
  */
 export function ShopEarningsBreakdown({ driverUserId, className }: Props) {
-  const { data: shops, isLoading } = useDriverShopEarnings(driverUserId);
+  const { data: shops, isLoading } = useDriverShopSettlement(driverUserId);
+  const [view, setView] = useState<ViewKey>("all");
 
   if (isLoading) {
     return <p className="text-xs text-muted-foreground">Уншиж байна...</p>;
@@ -22,11 +34,39 @@ export function ShopEarningsBreakdown({ driverUserId, className }: Props) {
     return <p className="text-xs text-muted-foreground">Хүргэлтийн орлого байхгүй</p>;
   }
 
-  const grandTotal = shops.reduce((sum, s) => sum + s.total, 0);
+  const valueFor = (s: (typeof shops)[number]) =>
+    view === "all" ? s.total : view === "pending" ? s.outstanding : s.withdrawn;
+
+  const amountColor =
+    view === "withdrawn"
+      ? "text-muted-foreground"
+      : view === "pending"
+        ? "text-amber-600"
+        : "text-emerald-600";
+
+  const grandTotal = shops.reduce((sum, s) => sum + valueFor(s), 0);
   const grandCount = shops.reduce((sum, s) => sum + s.count, 0);
 
   return (
     <div className={className}>
+      {/* View filter */}
+      <div className="mb-2 flex gap-1 rounded-xl bg-secondary/50 p-1">
+        {VIEWS.map((v) => (
+          <button
+            key={v.key}
+            onClick={() => setView(v.key)}
+            className={cn(
+              "flex-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors",
+              view === v.key
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground"
+            )}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
       <div className="space-y-2">
         {shops.map((s) => (
           <div
@@ -45,8 +85,8 @@ export function ShopEarningsBreakdown({ driverUserId, className }: Props) {
                 </p>
               </div>
             </div>
-            <p className="shrink-0 pl-2 text-sm font-semibold text-emerald-600">
-              ₮{s.total.toLocaleString()}
+            <p className={cn("shrink-0 pl-2 text-sm font-semibold", amountColor)}>
+              ₮{valueFor(s).toLocaleString()}
             </p>
           </div>
         ))}
