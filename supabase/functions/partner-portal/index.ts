@@ -143,6 +143,20 @@ serve(async (req) => {
           .update({ assigned_driver_user_id: driver_id || null })
           .eq("id", order_id);
         if (error) return json({ error: error.message }, 500);
+
+        // Notify the newly-assigned driver on Telegram (server-to-server,
+        // internal service-role call). Fire-and-forget: a Telegram failure must
+        // never block or roll back the assignment.
+        if (driver_id) {
+          try {
+            await supabase.functions.invoke("send-telegram-delivery-notification", {
+              body: { orderId: order_id },
+              headers: { Authorization: `Bearer ${supabaseKey}` },
+            });
+          } catch (e) {
+            console.error("partner-portal telegram notify failed:", (e as Error).message);
+          }
+        }
         return json({ ok: true });
       }
 
