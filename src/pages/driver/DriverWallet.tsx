@@ -5,7 +5,7 @@ import {
   useWalletTransactions,
   useWithdrawalRequests,
   useCreateWithdrawalRequest,
-  useDriverShopEarnings,
+  useDriverShopSettlement,
   TX_TYPE_LABELS,
   WITHDRAWAL_STATUS_LABELS,
 } from "@/hooks/useWallet";
@@ -47,36 +47,32 @@ export default function DriverWallet() {
   const { data: wallet, isLoading: walletLoading } = useDriverWallet(userId);
   const { data: transactions } = useWalletTransactions(userId);
   const { data: withdrawals } = useWithdrawalRequests(userId);
-  const { data: shopEarnings } = useDriverShopEarnings(userId);
+  const { data: shopSettlement } = useDriverShopSettlement(userId);
   const createWithdrawal = useCreateWithdrawalRequest();
 
   const [tab, setTab] = useState<string>("overview");
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [bankName, setBankName] = useState("");
   const [bankAccount, setBankAccount] = useState("");
-  const [shopFilter, setShopFilter] = useState<string>("all");
+  const [shopFilter, setShopFilter] = useState<string>("");
 
   const balance = Number(wallet?.balance || 0);
   const totalEarned = Number(wallet?.total_earned || 0);
   const totalWithdrawn = Number(wallet?.total_withdrawn || 0);
 
+  // Only shops that still have an outstanding (un-withdrawn) balance can be settled.
+  const settleableShops = (shopSettlement || []).filter((s) => s.outstanding > 0);
+
   const handleShopSelect = (code: string) => {
     setShopFilter(code);
-    if (code === "all") {
-      setWithdrawAmount("");
-      return;
-    }
-    const shop = shopEarnings?.find((s) => s.code === code);
+    const shop = shopSettlement?.find((s) => s.code === code);
     if (shop) {
-      // Auto-fill with that shop's total earnings (capped at available balance).
-      setWithdrawAmount(String(Math.min(shop.total, balance)));
+      // Auto-fill with that shop's outstanding amount (capped at available balance).
+      setWithdrawAmount(String(Math.min(shop.outstanding, balance)));
     }
   };
 
-  const selectedShopName =
-    shopFilter !== "all"
-      ? shopEarnings?.find((s) => s.code === shopFilter)?.name
-      : undefined;
+  const selectedShopName = shopSettlement?.find((s) => s.code === shopFilter)?.name;
 
   const handleWithdraw = () => {
     if (!wallet || !user) return;
@@ -98,7 +94,7 @@ export default function DriverWallet() {
         onSuccess: () => {
           toast({ title: "Хүсэлт илгээгдлээ" });
           setWithdrawAmount("");
-          setShopFilter("all");
+          setShopFilter("");
         },
         onError: (err: unknown) => {
           const message = err instanceof Error ? err.message : "Дахин оролдоно уу";
@@ -173,29 +169,32 @@ export default function DriverWallet() {
             <div className="bg-card border border-border rounded-xl p-4 space-y-3">
               <h3 className="font-medium text-foreground text-sm">Мөнгө татах хүсэлт</h3>
               <div className="space-y-2">
-                {shopEarnings && shopEarnings.length > 0 && (
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">Дэлгүүрээр сонгох</label>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Аль дэлгүүрийн төлбөр <span className="text-destructive">*</span></label>
+                  {settleableShops.length > 0 ? (
                     <Select value={shopFilter} onValueChange={handleShopSelect}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Бүх дэлгүүр" />
+                        <SelectValue placeholder="Дэлгүүр сонгох" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Бүх дэлгүүр</SelectItem>
-                        {shopEarnings.map((s) => (
+                        {settleableShops.map((s) => (
                           <SelectItem key={s.code} value={s.code}>
-                            {s.name} — ₮{s.total.toLocaleString()}
+                            {s.name} — ₮{s.outstanding.toLocaleString()}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {selectedShopName && (
-                      <p className="text-[11px] text-muted-foreground">
-                        {selectedShopName} хүргэлтийн нийт төлбөр бөглөгдлөө. Дүнгээ багасгаж засварлах боломжтой.
-                      </p>
-                    )}
-                  </div>
-                )}
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">
+                      Татах боломжтой дэлгүүрийн үлдэгдэл алга байна.
+                    </p>
+                  )}
+                  {selectedShopName && (
+                    <p className="text-[11px] text-muted-foreground">
+                      {selectedShopName} хүргэлтийн төлбөр бөглөгдлөө. Дүнгээ багасгаж засварлах боломжтой.
+                    </p>
+                  )}
+                </div>
                 <Input
                   type="number"
                   placeholder={`Дүн (хамгийн ихдээ ₮${balance.toLocaleString()})`}
@@ -217,7 +216,7 @@ export default function DriverWallet() {
                 <AlertDialogTrigger asChild>
                   <Button
                     className="w-full"
-                    disabled={!withdrawAmount || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > balance || createWithdrawal.isPending}
+                    disabled={!shopFilter || !withdrawAmount || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > balance || createWithdrawal.isPending}
                   >
                     <ArrowDownToLine className="h-4 w-4 mr-2" />
                     Татах хүсэлт илгээх
