@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
       ? items.map((i) => `${show(i.product_name_snapshot)}${i.quantity ? ` x${i.quantity}` : ""}`).join(", ")
       : "-";
     const address = [order.district, order.address_text].filter(Boolean).join(", ") || "-";
-    const fee = formatFee(order.delivery_fee ?? order.total_amount);
+    const fee = formatFee(order.total_amount ?? order.delivery_fee);
 
     const messageText =
       `🚚 <b>Шинэ хүргэлтийн захиалга орлоо!</b>\n\n` +
