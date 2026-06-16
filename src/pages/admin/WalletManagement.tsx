@@ -247,6 +247,12 @@ export default function WalletManagement() {
                   <div>
                     <p className="font-medium text-foreground text-sm">{getDriverName(r.driver_user_id)}</p>
                     <p className="text-lg font-bold text-foreground">₮{Number(r.amount).toLocaleString()}</p>
+                    {r.note && (
+                      <span className="mt-0.5 inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                        <Store className="h-3 w-3" />
+                        {r.note}
+                      </span>
+                    )}
                     {r.bank_name && <p className="text-xs text-muted-foreground">{r.bank_name} — {r.bank_account}</p>}
                   </div>
                   <Badge
