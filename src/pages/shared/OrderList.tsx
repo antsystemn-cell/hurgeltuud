@@ -289,7 +289,7 @@ export default function OrderList() {
                       </Select>
                       <Select
                         value={order.assigned_driver_user_id || ""}
-                        onValueChange={(val) => user && assignDriver.mutate({ orderId: order.id, driverId: val, userId: user.id })}
+                        onValueChange={(val) => handleAssign(order.id, val)}
                       >
                         <SelectTrigger className="w-[160px] h-9 text-xs"><SelectValue placeholder="Жолооч" /></SelectTrigger>
                         <SelectContent>
@@ -300,6 +300,19 @@ export default function OrderList() {
                           ))}
                         </SelectContent>
                       </Select>
+                      {order.assigned_driver_user_id && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 text-xs gap-1"
+                          onClick={() => handleResendTelegram(order.id)}
+                          disabled={resendTelegram.isPending}
+                          title="Telegram мэдэгдлийг дахин илгээх"
+                        >
+                          <Send className="h-3.5 w-3.5" />
+                          Telegram дахин
+                        </Button>
+                      )}
                       <Select
                         value={order.district || detectDistrict(order.address_text) || ""}
                         onValueChange={(val) => user && updateAddress.mutate({ orderId: order.id, district: val, addressText: order.address_text || "", userId: user.id })}
