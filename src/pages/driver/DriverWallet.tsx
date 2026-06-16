@@ -47,36 +47,32 @@ export default function DriverWallet() {
   const { data: wallet, isLoading: walletLoading } = useDriverWallet(userId);
   const { data: transactions } = useWalletTransactions(userId);
   const { data: withdrawals } = useWithdrawalRequests(userId);
-  const { data: shopEarnings } = useDriverShopEarnings(userId);
+  const { data: shopSettlement } = useDriverShopSettlement(userId);
   const createWithdrawal = useCreateWithdrawalRequest();
 
   const [tab, setTab] = useState<string>("overview");
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [bankName, setBankName] = useState("");
   const [bankAccount, setBankAccount] = useState("");
-  const [shopFilter, setShopFilter] = useState<string>("all");
+  const [shopFilter, setShopFilter] = useState<string>("");
 
   const balance = Number(wallet?.balance || 0);
   const totalEarned = Number(wallet?.total_earned || 0);
   const totalWithdrawn = Number(wallet?.total_withdrawn || 0);
 
+  // Only shops that still have an outstanding (un-withdrawn) balance can be settled.
+  const settleableShops = (shopSettlement || []).filter((s) => s.outstanding > 0);
+
   const handleShopSelect = (code: string) => {
     setShopFilter(code);
-    if (code === "all") {
-      setWithdrawAmount("");
-      return;
-    }
-    const shop = shopEarnings?.find((s) => s.code === code);
+    const shop = shopSettlement?.find((s) => s.code === code);
     if (shop) {
-      // Auto-fill with that shop's total earnings (capped at available balance).
-      setWithdrawAmount(String(Math.min(shop.total, balance)));
+      // Auto-fill with that shop's outstanding amount (capped at available balance).
+      setWithdrawAmount(String(Math.min(shop.outstanding, balance)));
     }
   };
 
-  const selectedShopName =
-    shopFilter !== "all"
-      ? shopEarnings?.find((s) => s.code === shopFilter)?.name
-      : undefined;
+  const selectedShopName = shopSettlement?.find((s) => s.code === shopFilter)?.name;
 
   const handleWithdraw = () => {
     if (!wallet || !user) return;
