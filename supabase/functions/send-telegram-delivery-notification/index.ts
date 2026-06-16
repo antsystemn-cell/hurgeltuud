@@ -30,6 +30,20 @@ function escapeHtml(input: string): string {
   return input.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// Mongolian labels for the current fulfillment status.
+const STATUS_LABELS: Record<string, string> = {
+  confirmed: "🔵 Баталгаажсан",
+  phone_confirmed: "🟡 Утсаар баталгаажсан",
+  out_for_delivery: "🟠 Хүргэлтэд гарсан",
+  delivered: "🟢 Хүргэгдсэн",
+  cancelled: "🔴 Цуцлагдсан",
+};
+
+function statusLabel(status: unknown): string {
+  const key = String(status ?? "");
+  return STATUS_LABELS[key] || show(status);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -44,7 +58,7 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
 
-    // Verify caller is a signed-in staff member (admin or operator).
+    // Verify caller is a signed-in user (staff or the assigned driver).
     const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -52,11 +66,6 @@ Deno.serve(async (req) => {
     if (!caller) return jsonResponse({ error: "Invalid session" }, 401);
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
-    const [{ data: isAdmin }, { data: isOperator }] = await Promise.all([
-      admin.rpc("has_role", { _user_id: caller.id, _role: "main_admin" }),
-      admin.rpc("has_role", { _user_id: caller.id, _role: "operator" }),
-    ]);
-    if (!isAdmin && !isOperator) return jsonResponse({ error: "Forbidden: staff only" }, 403);
 
     const body = await req.json().catch(() => ({}));
     const orderId = body?.orderId;
@@ -73,6 +82,16 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (orderErr) return jsonResponse({ error: orderErr.message }, 400);
     if (!order) return jsonResponse({ error: "Order not found" }, 404);
+
+    // Authorisation: staff (admin/operator) OR the assigned driver of this order.
+    const [{ data: isAdmin }, { data: isOperator }] = await Promise.all([
+      admin.rpc("has_role", { _user_id: caller.id, _role: "main_admin" }),
+      admin.rpc("has_role", { _user_id: caller.id, _role: "operator" }),
+    ]);
+    const isAssignedDriver = order.assigned_driver_user_id === caller.id;
+    if (!isAdmin && !isOperator && !isAssignedDriver) {
+      return jsonResponse({ error: "Forbidden" }, 403);
+    }
 
     const driverId = order.assigned_driver_user_id as string | null;
     if (!driverId) {
@@ -95,15 +114,6 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true, sent: false, skipped: "Telegram chat ID is missing" });
     }
 
-    // Duplicate guard (skipped when admin forces a manual resend).
-    if (!force && order.telegram_notified === true && order.telegram_last_sent_driver_id === driverId) {
-      return jsonResponse({
-        success: true,
-        sent: false,
-        skipped: "Telegram notification already sent to this driver",
-      });
-    }
-
     if (!botToken) {
       const msg = "TELEGRAM_BOT_TOKEN is not configured";
       console.error(msg);
@@ -111,7 +121,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true, sent: false, error: msg });
     }
 
-    // Build message text.
+    // Build message text (reflects the order's CURRENT status).
     const items = (order.order_items ?? []) as Array<{ product_name_snapshot: string; quantity: number }>;
     const productName = items.length
       ? items.map((i) => `${show(i.product_name_snapshot)}${i.quantity ? ` x${i.quantity}` : ""}`).join(", ")
@@ -125,12 +135,84 @@ Deno.serve(async (req) => {
       `📦 Бараа: ${escapeHtml(productName)}\n` +
       `📍 Хаяг: ${escapeHtml(address)}\n` +
       `💰 Төлбөр: ${escapeHtml(fee)}₮\n` +
-      `🧾 Захиалгын дугаар: ${escapeHtml(show(order.internal_order_number))}\n\n` +
+      `🧾 Захиалгын дугаар: ${escapeHtml(show(order.internal_order_number))}\n` +
+      `📊 Төлөв: ${escapeHtml(statusLabel(order.fulfillment_status))}\n\n` +
       `Жолооч та хүргэлтээ систем дээрээс шалгана уу.`;
 
-    // Send to Telegram.
+    const existingChatId = (order.telegram_chat_id as string | null) || null;
+    const existingMessageId = (order.telegram_message_id as string | null) || null;
+
+    // ---- EDIT PATH: a message already exists for this group → edit it in place. ----
+    const canEdit =
+      !!existingMessageId &&
+      !!existingChatId &&
+      existingChatId === String(driver.telegram_chat_id);
+
+    if (canEdit) {
+      let editOk = false;
+      let editError = "";
+      let messageMissing = false;
+      try {
+        const res = await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: existingChatId,
+            message_id: Number(existingMessageId),
+            text: messageText,
+            parse_mode: "HTML",
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        editOk = res.ok && data?.ok === true;
+        if (!editOk) {
+          editError = data?.description || `Telegram error (HTTP ${res.status})`;
+          const lower = editError.toLowerCase();
+          // Telegram returns these when the original message no longer exists.
+          messageMissing =
+            lower.includes("message to edit not found") ||
+            lower.includes("message_id_invalid") ||
+            lower.includes("message can't be edited");
+        }
+      } catch (e) {
+        editError = (e as Error).message || "Telegram edit request failed";
+      }
+
+      // "message is not modified" means the content is already up to date — treat as success.
+      const notModified = editError.toLowerCase().includes("message is not modified");
+
+      if (editOk || notModified) {
+        await admin
+          .from("orders")
+          .update({
+            telegram_message_last_edited_at: new Date().toISOString(),
+            telegram_notify_error: null,
+          })
+          .eq("id", orderId);
+        console.log(`Telegram message edited for order ${orderId} (status ${order.fulfillment_status})`);
+        return jsonResponse({ success: true, edited: true, driver: driver.full_name });
+      }
+
+      // If the original message is gone, fall through to send a fresh one.
+      if (!messageMissing) {
+        console.error(`Telegram edit failed for order ${orderId}: ${editError}`);
+        await admin.from("orders").update({ telegram_notify_error: editError }).eq("id", orderId);
+        return jsonResponse({ success: true, edited: false, error: editError });
+      }
+      console.warn(`Telegram message missing for order ${orderId}, sending a new one: ${editError}`);
+    } else if (!force && order.telegram_notified === true && order.telegram_last_sent_driver_id === driverId) {
+      // ---- SEND PATH duplicate guard (only when there is no editable message). ----
+      return jsonResponse({
+        success: true,
+        sent: false,
+        skipped: "Telegram notification already sent to this driver",
+      });
+    }
+
+    // ---- SEND PATH: no editable message → send a new one and store its id. ----
     let tgOk = false;
     let tgError = "";
+    let newMessageId: number | null = null;
     try {
       const tgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: "POST",
@@ -143,7 +225,9 @@ Deno.serve(async (req) => {
       });
       const tgData = await tgRes.json().catch(() => ({}));
       tgOk = tgRes.ok && tgData?.ok === true;
-      if (!tgOk) {
+      if (tgOk) {
+        newMessageId = tgData?.result?.message_id ?? null;
+      } else {
         tgError = tgData?.description || `Telegram error (HTTP ${tgRes.status})`;
       }
     } catch (e) {
@@ -157,6 +241,9 @@ Deno.serve(async (req) => {
           telegram_notified: true,
           telegram_notified_at: new Date().toISOString(),
           telegram_last_sent_driver_id: driverId,
+          telegram_message_id: newMessageId !== null ? String(newMessageId) : null,
+          telegram_chat_id: String(driver.telegram_chat_id),
+          telegram_message_last_edited_at: new Date().toISOString(),
           telegram_notify_error: null,
         })
         .eq("id", orderId);

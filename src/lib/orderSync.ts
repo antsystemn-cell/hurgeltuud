@@ -28,6 +28,15 @@ export function fireShopWebhook(orderId: string, eventType = "status_changed") {
     .catch((err) => console.error("Shop webhook invoke failed:", err));
 }
 
+// ---- Telegram message sync (server-side; edits the existing group message) ----
+// Fire-and-forget: a Telegram failure must never block or roll back a status update.
+export function fireTelegramSync(orderId: string) {
+  supabase.functions
+    .invoke("send-telegram-delivery-notification", { body: { orderId } })
+    .catch((err) => console.error("Telegram sync invoke failed:", err));
+}
+
+
 function buildStatusUpdates(input: StatusUpdateInput): Record<string, unknown> {
   const updates: Record<string, unknown> = {
     fulfillment_status: input.status,
@@ -64,6 +73,7 @@ export async function applyStatusUpdate(input: StatusUpdateInput): Promise<void>
     const { error } = await supabase.from("orders").update(buildStatusUpdates(input) as never).eq("id", input.orderId);
     if (error) throw error;
     fireShopWebhook(input.orderId);
+    fireTelegramSync(input.orderId);
   } finally {
     inFlight.delete(key);
   }
@@ -80,6 +90,7 @@ export async function applyPaymentUpdate(input: PaymentUpdateInput): Promise<voi
       .eq("id", input.orderId);
     if (error) throw error;
     fireShopWebhook(input.orderId);
+    fireTelegramSync(input.orderId);
   } finally {
     inFlight.delete(key);
   }
@@ -114,6 +125,7 @@ export async function applyDeliveryOutcome(input: DeliveryOutcomeInput): Promise
     const { error } = await supabase.from("orders").update(updates as never).eq("id", input.orderId);
     if (error) throw error;
     fireShopWebhook(input.orderId);
+    fireTelegramSync(input.orderId);
   } finally {
     inFlight.delete(key);
   }
