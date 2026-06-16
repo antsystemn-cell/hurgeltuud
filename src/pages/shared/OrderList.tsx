@@ -103,6 +103,34 @@ export default function OrderList() {
   const deleteOrder = useDeleteOrder();
   const retrySync = useManualRetrySync();
   const updateAddress = useUpdateOrderAddress();
+  const resendTelegram = useResendTelegramNotification();
+
+  const handleAssign = (orderId: string, driverId: string) => {
+    if (!user) return;
+    assignDriver.mutate(
+      { orderId, driverId, userId: user.id },
+      {
+        onSuccess: ({ telegram }) => {
+          if (!telegram) return;
+          if (telegram.sent) toast.success("Telegram мэдэгдэл амжилттай илгээгдлээ.");
+          else if (telegram.skipped) toast.message("Telegram мэдэгдэл илгээгдсэнгүй: chat ID тохируулаагүй байна.");
+          else if (telegram.error) toast.warning("Захиалга жолоочид оноогдсон. Харин Telegram мэдэгдэл илгээхэд алдаа гарлаа.");
+        },
+        onError: (e) => toast.error((e as Error).message),
+      }
+    );
+  };
+
+  const handleResendTelegram = (orderId: string) => {
+    resendTelegram.mutate(orderId, {
+      onSuccess: (telegram) => {
+        if (telegram?.sent) toast.success("Telegram мэдэгдэл дахин илгээгдлээ.");
+        else if (telegram?.skipped) toast.message(`Telegram илгээгдсэнгүй: ${telegram.skipped}`);
+        else toast.warning(`Telegram алдаа: ${telegram?.error || "тодорхойгүй"}`);
+      },
+      onError: (e) => toast.error((e as Error).message),
+    });
+  };
 
 
   return (
