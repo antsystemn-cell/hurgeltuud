@@ -92,11 +92,13 @@ export default function DriverWallet() {
         amount: amt,
         bankName: bankName || undefined,
         bankAccount: bankAccount || undefined,
+        note: selectedShopName ? `${selectedShopName} хүргэлтийн төлбөр` : undefined,
       },
       {
         onSuccess: () => {
           toast({ title: "Хүсэлт илгээгдлээ" });
           setWithdrawAmount("");
+          setShopFilter("all");
         },
         onError: (err: unknown) => {
           const message = err instanceof Error ? err.message : "Дахин оролдоно уу";
