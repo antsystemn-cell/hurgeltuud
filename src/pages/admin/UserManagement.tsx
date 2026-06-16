@@ -277,6 +277,41 @@ export default function UserManagement() {
               <Label>Утас</Label>
               <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
             </div>
+
+            {/* Telegram settings — drivers only */}
+            {editUser?.roles.includes("driver") && (
+              <div className="space-y-3 rounded-lg border border-border p-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Telegram мэдэгдэл</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Идэвхтэй</span>
+                    <Switch checked={editTgEnabled} onCheckedChange={setEditTgEnabled} />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Telegram group chat ID</Label>
+                  <Input
+                    value={editTgChatId}
+                    onChange={(e) => setEditTgChatId(e.target.value)}
+                    placeholder="-1001234567890"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Жолооч тус бүрт өөрийн Telegram group chat ID оруулна. Жишээ: -1001234567890
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={handleSendTelegramTest}
+                  disabled={sendTelegramTest.isPending}
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {sendTelegramTest.isPending ? "Илгээж байна..." : "Send test Telegram message"}
+                </Button>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditUser(null)}>Болих</Button>
