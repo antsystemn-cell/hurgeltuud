@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Settings, Wallet, Users, Clock, Plus, Minus, ArrowRight, Eye } from "lucide-react";
+import { Settings, Wallet, Users, Clock, Plus, Minus, ArrowRight, Eye, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import {
