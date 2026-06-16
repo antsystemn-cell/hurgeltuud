@@ -77,6 +77,65 @@ export function useWalletTransactions(driverUserId: string) {
   });
 }
 
+export type ShopEarning = {
+  code: string; // merchant_code or "__none__"
+  name: string;
+  count: number;
+  total: number;
+};
+
+// Breakdown of a driver's delivery earnings grouped by shop (merchant).
+// wallet_transactions.order_id has no FK, so we fetch the related orders
+// separately and join them client-side.
+export function useDriverShopEarnings(driverUserId: string) {
+  return useQuery({
+    queryKey: ["driver_shop_earnings", driverUserId],
+    queryFn: async (): Promise<ShopEarning[]> => {
+      const { data: txs, error } = await supabase
+        .from("wallet_transactions")
+        .select("amount, order_id")
+        .eq("driver_user_id", driverUserId)
+        .eq("type", "delivery_earning");
+      if (error) throw error;
+
+      const rows = txs || [];
+      const orderIds = Array.from(
+        new Set(rows.map((t) => t.order_id).filter((id): id is string => !!id))
+      );
+
+      const merchantByOrder = new Map<string, { code: string | null; name: string | null }>();
+      if (orderIds.length > 0) {
+        const { data: orders, error: oErr } = await supabase
+          .from("orders")
+          .select("id, merchant_code, merchant_name")
+          .in("id", orderIds);
+        if (oErr) throw oErr;
+        for (const o of orders || []) {
+          merchantByOrder.set(o.id, { code: o.merchant_code, name: o.merchant_name });
+        }
+      }
+
+      const groups = new Map<string, ShopEarning>();
+      for (const t of rows) {
+        const m = t.order_id ? merchantByOrder.get(t.order_id) : undefined;
+        const code = m?.code || "__none__";
+        const name = m?.name || "Бусад / Тодорхойгүй";
+        const existing = groups.get(code);
+        if (existing) {
+          existing.count += 1;
+          existing.total += Number(t.amount);
+        } else {
+          groups.set(code, { code, name, count: 1, total: Number(t.amount) });
+        }
+      }
+
+      return Array.from(groups.values()).sort((a, b) => b.total - a.total);
+    },
+    enabled: !!driverUserId,
+    staleTime: 15000,
+  });
+}
+
 export function useWithdrawalRequests(driverUserId?: string) {
   return useQuery({
     queryKey: ["withdrawal_requests", driverUserId],
