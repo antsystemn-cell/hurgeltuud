@@ -162,7 +162,10 @@ export type Database = {
           subtotal: number | null
           sync_attempts: number
           sync_error: string | null
+          telegram_chat_id: string | null
           telegram_last_sent_driver_id: string | null
+          telegram_message_id: string | null
+          telegram_message_last_edited_at: string | null
           telegram_notified: boolean
           telegram_notified_at: string | null
           telegram_notify_error: string | null
@@ -213,7 +216,10 @@ export type Database = {
           subtotal?: number | null
           sync_attempts?: number
           sync_error?: string | null
+          telegram_chat_id?: string | null
           telegram_last_sent_driver_id?: string | null
+          telegram_message_id?: string | null
+          telegram_message_last_edited_at?: string | null
           telegram_notified?: boolean
           telegram_notified_at?: string | null
           telegram_notify_error?: string | null
@@ -264,7 +270,10 @@ export type Database = {
           subtotal?: number | null
           sync_attempts?: number
           sync_error?: string | null
+          telegram_chat_id?: string | null
           telegram_last_sent_driver_id?: string | null
+          telegram_message_id?: string | null
+          telegram_message_last_edited_at?: string | null
           telegram_notified?: boolean
           telegram_notified_at?: string | null
           telegram_notify_error?: string | null
