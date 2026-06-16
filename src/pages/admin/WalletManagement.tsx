@@ -12,11 +12,12 @@ import {
   WITHDRAWAL_STATUS_LABELS,
 } from "@/hooks/useWallet";
 import { useDrivers } from "@/hooks/useOrders";
+import { ShopEarningsBreakdown } from "@/components/driver/ShopEarningsBreakdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Settings, Wallet, Users, Clock, Plus, Minus, ArrowRight, Eye } from "lucide-react";
+import { Settings, Wallet, Users, Clock, Plus, Minus, ArrowRight, Eye, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -246,6 +247,12 @@ export default function WalletManagement() {
                   <div>
                     <p className="font-medium text-foreground text-sm">{getDriverName(r.driver_user_id)}</p>
                     <p className="text-lg font-bold text-foreground">₮{Number(r.amount).toLocaleString()}</p>
+                    {r.note && (
+                      <span className="mt-0.5 inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                        <Store className="h-3 w-3" />
+                        {r.note}
+                      </span>
+                    )}
                     {r.bank_name && <p className="text-xs text-muted-foreground">{r.bank_name} — {r.bank_account}</p>}
                   </div>
                   <Badge
@@ -303,7 +310,14 @@ export default function WalletManagement() {
           <DialogHeader>
             <DialogTitle>{viewDriverId ? getDriverName(viewDriverId) : ""} — Гүйлгээний түүх</DialogTitle>
           </DialogHeader>
+          {viewDriverId && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-foreground">Дэлгүүр тус бүрийн орлого</h4>
+              <ShopEarningsBreakdown driverUserId={viewDriverId} />
+            </div>
+          )}
           <div className="space-y-2">
+            <h4 className="text-sm font-medium text-foreground">Гүйлгээний түүх</h4>
             {!viewTxs?.length ? (
               <p className="text-sm text-muted-foreground text-center py-4">Гүйлгээ байхгүй</p>
             ) : (
