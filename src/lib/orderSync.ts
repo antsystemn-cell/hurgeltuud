@@ -125,6 +125,7 @@ export async function applyDeliveryOutcome(input: DeliveryOutcomeInput): Promise
     const { error } = await supabase.from("orders").update(updates as never).eq("id", input.orderId);
     if (error) throw error;
     fireShopWebhook(input.orderId);
+    fireTelegramSync(input.orderId);
   } finally {
     inFlight.delete(key);
   }
