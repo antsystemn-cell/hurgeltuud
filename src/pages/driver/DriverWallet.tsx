@@ -216,7 +216,7 @@ export default function DriverWallet() {
                 <AlertDialogTrigger asChild>
                   <Button
                     className="w-full"
-                    disabled={!withdrawAmount || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > balance || createWithdrawal.isPending}
+                    disabled={!shopFilter || !withdrawAmount || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > balance || createWithdrawal.isPending}
                   >
                     <ArrowDownToLine className="h-4 w-4 mr-2" />
                     Татах хүсэлт илгээх
