@@ -156,17 +156,75 @@ export function useUpdateOrderStatus() {
   });
 }
 
+export type TelegramNotifyResult = {
+  success?: boolean;
+  sent?: boolean;
+  skipped?: string;
+  error?: string;
+  driver?: string;
+} | null;
+
 export function useAssignDriver() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ orderId, driverId, userId }: { orderId: string; driverId: string | null; userId: string }) => {
-      const { error } = await supabase
-        .from("orders")
-        .update({ assigned_driver_user_id: driverId, updated_by_user_id: userId })
-        .eq("id", orderId);
+      const updates: Record<string, unknown> = {
+        assigned_driver_user_id: driverId,
+        updated_by_user_id: userId,
+      };
+      // Stamp assignment time only when an actual driver is assigned (additive, non-breaking).
+      if (driverId) updates.assigned_at = new Date().toISOString();
+
+      const { error } = await supabase.from("orders").update(updates).eq("id", orderId);
       if (error) throw error;
+
+      // Fire Telegram notification AFTER successful assignment.
+      // A Telegram failure must never roll back or block the assignment.
+      let telegram: TelegramNotifyResult = null;
+      if (driverId) {
+        try {
+          const { data, error: fnErr } = await supabase.functions.invoke(
+            "send-telegram-delivery-notification",
+            { body: { orderId } }
+          );
+          telegram = fnErr ? { sent: false, error: fnErr.message } : (data as TelegramNotifyResult);
+        } catch (e) {
+          telegram = { sent: false, error: (e as Error).message };
+        }
+      }
+      return { telegram };
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
+  });
+}
+
+// Manually (force) resend the Telegram delivery notification for an order.
+export function useResendTelegramNotification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      const { data, error } = await supabase.functions.invoke(
+        "send-telegram-delivery-notification",
+        { body: { orderId, force: true } }
+      );
+      if (error) throw error;
+      return data as TelegramNotifyResult;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
+  });
+}
+
+// Send a one-off test Telegram message to a driver's group chat.
+export function useSendTelegramTest() {
+  return useMutation({
+    mutationFn: async (driverId: string) => {
+      const { data, error } = await supabase.functions.invoke("send-telegram-test-message", {
+        body: { driverId },
+      });
+      if (error) throw error;
+      if (data?.success === false) throw new Error(data.error || "Telegram алдаа");
+      return data;
+    },
   });
 }
 
