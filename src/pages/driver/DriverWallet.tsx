@@ -94,7 +94,7 @@ export default function DriverWallet() {
         onSuccess: () => {
           toast({ title: "Хүсэлт илгээгдлээ" });
           setWithdrawAmount("");
-          setShopFilter("all");
+          setShopFilter("");
         },
         onError: (err: unknown) => {
           const message = err instanceof Error ? err.message : "Дахин оролдоно уу";
