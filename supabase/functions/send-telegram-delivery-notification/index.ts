@@ -91,14 +91,17 @@ Deno.serve(async (req) => {
     if (orderErr) return jsonResponse({ error: orderErr.message }, 400);
     if (!order) return jsonResponse({ error: "Order not found" }, 404);
 
-    // Authorisation: staff (admin/operator) OR the assigned driver of this order.
-    const [{ data: isAdmin }, { data: isOperator }] = await Promise.all([
-      admin.rpc("has_role", { _user_id: caller.id, _role: "main_admin" }),
-      admin.rpc("has_role", { _user_id: caller.id, _role: "operator" }),
-    ]);
-    const isAssignedDriver = order.assigned_driver_user_id === caller.id;
-    if (!isAdmin && !isOperator && !isAssignedDriver) {
-      return jsonResponse({ error: "Forbidden" }, 403);
+    // Authorisation: internal service-role calls are pre-trusted. Otherwise the
+    // caller must be staff (admin/operator) OR the assigned driver of this order.
+    if (!isInternal) {
+      const [{ data: isAdmin }, { data: isOperator }] = await Promise.all([
+        admin.rpc("has_role", { _user_id: caller!.id, _role: "main_admin" }),
+        admin.rpc("has_role", { _user_id: caller!.id, _role: "operator" }),
+      ]);
+      const isAssignedDriver = order.assigned_driver_user_id === caller!.id;
+      if (!isAdmin && !isOperator && !isAssignedDriver) {
+        return jsonResponse({ error: "Forbidden" }, 403);
+      }
     }
 
     const driverId = order.assigned_driver_user_id as string | null;
