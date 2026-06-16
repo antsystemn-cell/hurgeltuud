@@ -122,6 +122,7 @@ export type Database = {
         Row: {
           address_text: string | null
           alternate_phone: string | null
+          assigned_at: string | null
           assigned_driver_user_id: string | null
           cancelled_at: string | null
           confirmed_at: string | null
@@ -161,6 +162,10 @@ export type Database = {
           subtotal: number | null
           sync_attempts: number
           sync_error: string | null
+          telegram_last_sent_driver_id: string | null
+          telegram_notified: boolean
+          telegram_notified_at: string | null
+          telegram_notify_error: string | null
           total_amount: number | null
           updated_at: string
           updated_by_user_id: string | null
@@ -168,6 +173,7 @@ export type Database = {
         Insert: {
           address_text?: string | null
           alternate_phone?: string | null
+          assigned_at?: string | null
           assigned_driver_user_id?: string | null
           cancelled_at?: string | null
           confirmed_at?: string | null
@@ -207,6 +213,10 @@ export type Database = {
           subtotal?: number | null
           sync_attempts?: number
           sync_error?: string | null
+          telegram_last_sent_driver_id?: string | null
+          telegram_notified?: boolean
+          telegram_notified_at?: string | null
+          telegram_notify_error?: string | null
           total_amount?: number | null
           updated_at?: string
           updated_by_user_id?: string | null
@@ -214,6 +224,7 @@ export type Database = {
         Update: {
           address_text?: string | null
           alternate_phone?: string | null
+          assigned_at?: string | null
           assigned_driver_user_id?: string | null
           cancelled_at?: string | null
           confirmed_at?: string | null
@@ -253,6 +264,10 @@ export type Database = {
           subtotal?: number | null
           sync_attempts?: number
           sync_error?: string | null
+          telegram_last_sent_driver_id?: string | null
+          telegram_notified?: boolean
+          telegram_notified_at?: string | null
+          telegram_notify_error?: string | null
           total_amount?: number | null
           updated_at?: string
           updated_by_user_id?: string | null
@@ -315,6 +330,8 @@ export type Database = {
           full_name: string
           id: string
           phone: string | null
+          telegram_chat_id: string | null
+          telegram_enabled: boolean
           updated_at: string
           user_id: string
           vehicle_plate: string | null
@@ -325,6 +342,8 @@ export type Database = {
           full_name?: string
           id?: string
           phone?: string | null
+          telegram_chat_id?: string | null
+          telegram_enabled?: boolean
           updated_at?: string
           user_id: string
           vehicle_plate?: string | null
@@ -335,6 +354,8 @@ export type Database = {
           full_name?: string
           id?: string
           phone?: string | null
+          telegram_chat_id?: string | null
+          telegram_enabled?: boolean
           updated_at?: string
           user_id?: string
           vehicle_plate?: string | null
@@ -624,6 +645,8 @@ export type Database = {
           active: boolean
           full_name: string
           phone: string
+          telegram_chat_id: string
+          telegram_enabled: boolean
           user_id: string
         }[]
       }
