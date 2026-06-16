@@ -128,14 +128,23 @@ Deno.serve(async (req) => {
       : "-";
     const address = [order.district, order.address_text].filter(Boolean).join(", ") || "-";
     const fee = formatFee(order.total_amount ?? order.delivery_fee);
-    const shopName =
-      (order.source_systems as { name?: string } | null)?.name ||
-      order.source_channel ||
-      "-";
+    // Resolve the actual shop in 2 ways:
+    //  1) merchant_name → the specific shop inside Only Merchants Hub (e.g. "Only Shop")
+    //  2) source_systems.name → a directly-connected shop (e.g. "EasyShop")
+    const sourceName =
+      ((order.source_systems as { name?: string } | null)?.name || "").trim() ||
+      String(order.source_channel ?? "").trim();
+    const merchant = String(order.merchant_name ?? "").trim();
+    const shopLine =
+      merchant && merchant.toLowerCase() !== sourceName.toLowerCase()
+        ? sourceName
+          ? `${merchant} (${sourceName})`
+          : merchant
+        : sourceName || merchant || "-";
 
     const messageText =
       `🚚 <b>Шинэ хүргэлтийн захиалга орлоо!</b>\n\n` +
-      `🏪 Дэлгүүр: ${escapeHtml(show(shopName))}\n` +
+      `🏪 Дэлгүүр: ${escapeHtml(show(shopLine))}\n` +
       `👤 Хүлээн авагч: ${escapeHtml(show(order.phone))}\n` +
       `📦 Бараа: ${escapeHtml(productName)}\n` +
       `📍 Хаяг: ${escapeHtml(address)}\n` +
