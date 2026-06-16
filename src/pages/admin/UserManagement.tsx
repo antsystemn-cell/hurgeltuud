@@ -109,10 +109,31 @@ export default function UserManagement() {
 
   const handleEdit = () => {
     if (!editUser) return;
+    const isDriver = editUser.roles.includes("driver");
     manageUser.mutate(
-      { action: "update_profile", user_id: editUser.user_id, full_name: editName, phone: editPhone },
+      {
+        action: "update_profile",
+        user_id: editUser.user_id,
+        full_name: editName,
+        phone: editPhone,
+        ...(isDriver
+          ? { telegram_chat_id: editTgChatId, telegram_enabled: editTgEnabled }
+          : {}),
+      },
       { onSuccess: () => { toast.success("Мэдээлэл шинэчлэгдлээ"); setEditUser(null); } }
     );
+  };
+
+  const handleSendTelegramTest = () => {
+    if (!editUser) return;
+    if (!editTgChatId.trim()) {
+      toast.error("Эхлээд Telegram group chat ID оруулна уу.");
+      return;
+    }
+    sendTelegramTest.mutate(editUser.user_id, {
+      onSuccess: () => toast.success("Telegram тест мессеж илгээгдлээ."),
+      onError: (e) => toast.error(`Telegram алдаа: ${(e as Error).message}`),
+    });
   };
 
   const handleRoleChange = () => {
