@@ -161,32 +161,11 @@ export type ShopSettlement = ShopEarning & {
   outstanding: number; // still to be settled = earned - withdrawn - pending (Хүлээгдэж буй)
 };
 
-// Distributes a whole-number `amount` across `weights` returning whole-number
-// parts that sum EXACTLY to `amount` (largest-remainder / Hare quota method).
-// Guarantees no fractional tögrög ever appears in the per-shop wallet view.
-function allocateWhole(amount: number, weights: number[]): number[] {
-  const n = weights.length;
-  if (n === 0 || amount <= 0) return weights.map(() => 0);
-  const totalWeight = weights.reduce((a, b) => a + b, 0);
-
-  if (totalWeight <= 0) {
-    // No weighting info — spread as evenly as possible.
-    const base = Math.floor(amount / n);
-    const res = weights.map(() => base);
-    let rem = amount - base * n;
-    for (let i = 0; i < n && rem > 0; i++, rem--) res[i] += 1;
-    return res;
-  }
-
-  const raw = weights.map((w) => (amount * w) / totalWeight);
-  const floored = raw.map((r) => Math.floor(r));
-  let rem = amount - floored.reduce((a, b) => a + b, 0);
-  const byFrac = raw
-    .map((r, i) => ({ i, frac: r - Math.floor(r) }))
-    .sort((a, b) => b.frac - a.frac);
-  for (let k = 0; k < byFrac.length && rem > 0; k++, rem--) floored[byFrac[k].i] += 1;
-  return floored;
-}
+type DeliveryUnit = {
+  shopCode: string;
+  createdAt: string;
+  amount: number;
+};
 
 
 // Combines a driver's per-shop earnings with their actual wallet withdrawals so
@@ -198,20 +177,56 @@ function allocateWhole(amount: number, weights: number[]): number[] {
 //   sum(withdrawn)   === wallet.total_withdrawn
 //   sum(outstanding) === wallet.balance - pending
 // Withdrawals are first attributed to a shop via the request note (saved at
-// creation). Any remaining withdrawal that cannot be matched to a shop (e.g. an
-// admin bank transfer, or an old request with no note) is distributed across the
-// shops proportionally to their remaining (un-withdrawn) earnings, so no money
-// is ever lost from the "Татсан" view.
+// creation). Any remaining old withdrawal with no shop note is matched against
+// the driver's earliest delivered orders, one 8,000₮ delivery at a time. This
+// keeps every shop value as a clean whole-delivery amount and avoids arbitrary
+// proportional numbers like 262,552₮.
 export function useDriverShopSettlement(driverUserId: string) {
   const earningsQ = useDriverShopEarnings(driverUserId);
   const withdrawalsQ = useWithdrawalRequests(driverUserId);
   const walletQ = useDriverWallet(driverUserId);
+  const deliveryUnitsQ = useQuery({
+    queryKey: ["driver_delivery_units", driverUserId],
+    queryFn: async (): Promise<DeliveryUnit[]> => {
+      const { data: txs, error } = await supabase
+        .from("wallet_transactions")
+        .select("amount, order_id, created_at")
+        .eq("driver_user_id", driverUserId)
+        .eq("type", "delivery_earning")
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+
+      const rows = txs || [];
+      const orderIds = Array.from(
+        new Set(rows.map((t) => t.order_id).filter((id): id is string => !!id))
+      );
+
+      const merchantByOrder = new Map<string, string>();
+      if (orderIds.length > 0) {
+        const { data: orders, error: oErr } = await supabase
+          .from("orders")
+          .select("id, merchant_code")
+          .in("id", orderIds);
+        if (oErr) throw oErr;
+        for (const o of orders || []) merchantByOrder.set(o.id, o.merchant_code || "__none__");
+      }
+
+      return rows.map((t) => ({
+        shopCode: t.order_id ? merchantByOrder.get(t.order_id) || "__none__" : "__none__",
+        createdAt: t.created_at,
+        amount: Number(t.amount),
+      }));
+    },
+    enabled: !!driverUserId,
+    staleTime: 15000,
+  });
 
   const data = useMemo<ShopSettlement[] | undefined>(() => {
-    if (!earningsQ.data) return undefined;
+    if (!earningsQ.data || !deliveryUnitsQ.data) return undefined;
     const shops = earningsQ.data;
     const reqs = withdrawalsQ.data || [];
     const wallet = walletQ.data;
+    const deliveryUnits = deliveryUnitsQ.data;
 
     // Every delivery is worth one flat fee (e.g. 8,000₮), so we account for
     // money in WHOLE DELIVERIES. This guarantees every per-shop amount is always
@@ -260,20 +275,37 @@ export function useDriverShopSettlement(driverUserId: string) {
     const sumAttrPendingU = Array.from(attrPendingU.values()).reduce((a, b) => a + b, 0);
 
     // Step 2: whatever is left unattributed (e.g. an old admin bank transfer
-    // saved without a shop note) is distributed as WHOLE DELIVERIES across
-    // shops, weighted by each shop's remaining (un-withdrawn) delivery count.
+    // saved without a shop note) consumes the driver's earliest completed
+    // delivery earnings, not a proportional split. If a 280,000₮ old withdrawal
+    // happened when exactly 35 deliveries existed, it becomes those exact 35
+    // deliveries by shop (e.g. 19 "Бусад" + 16 "Only Shop").
     const unattrWithdrawnU = Math.max(totalWithdrawnUnits - sumAttrWithdrawnU, 0);
     const unattrPendingU = Math.max(totalPendingUnits - sumAttrPendingU, 0);
 
-    const remainingU = shops.map((s) =>
-      Math.max(s.count - (attrWithdrawnU.get(s.code) || 0) - (attrPendingU.get(s.code) || 0), 0)
-    );
-    const distWithdrawnU = allocateWhole(unattrWithdrawnU, remainingU);
-    const distPendingU = allocateWhole(unattrPendingU, remainingU);
+    const distWithdrawnByShop = new Map<string, number>();
+    const distPendingByShop = new Map<string, number>();
+    const availableUnits = deliveryUnits.flatMap((unit) => {
+      const units = toUnits(unit.amount);
+      return Array.from({ length: units }, () => unit.shopCode);
+    });
 
-    return shops.map((shop, i) => {
-      const withdrawnU = (attrWithdrawnU.get(shop.code) || 0) + distWithdrawnU[i];
-      const pendingU = (attrPendingU.get(shop.code) || 0) + distPendingU[i];
+    for (let i = 0; i < unattrWithdrawnU && i < availableUnits.length; i++) {
+      const code = availableUnits[i];
+      distWithdrawnByShop.set(code, (distWithdrawnByShop.get(code) || 0) + 1);
+    }
+
+    for (
+      let i = unattrWithdrawnU;
+      i < unattrWithdrawnU + unattrPendingU && i < availableUnits.length;
+      i++
+    ) {
+      const code = availableUnits[i];
+      distPendingByShop.set(code, (distPendingByShop.get(code) || 0) + 1);
+    }
+
+    return shops.map((shop) => {
+      const withdrawnU = (attrWithdrawnU.get(shop.code) || 0) + (distWithdrawnByShop.get(shop.code) || 0);
+      const pendingU = (attrPendingU.get(shop.code) || 0) + (distPendingByShop.get(shop.code) || 0);
       const outstandingU = Math.max(shop.count - withdrawnU - pendingU, 0);
       const total = shop.count * fee;
       return {
@@ -284,11 +316,11 @@ export function useDriverShopSettlement(driverUserId: string) {
         outstanding: outstandingU * fee,
       };
     });
-  }, [earningsQ.data, withdrawalsQ.data, walletQ.data]);
+  }, [deliveryUnitsQ.data, earningsQ.data, withdrawalsQ.data, walletQ.data]);
 
   return {
     data,
-    isLoading: earningsQ.isLoading || withdrawalsQ.isLoading || walletQ.isLoading,
+    isLoading: earningsQ.isLoading || withdrawalsQ.isLoading || walletQ.isLoading || deliveryUnitsQ.isLoading,
   };
 }
 
