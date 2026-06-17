@@ -10,8 +10,9 @@ import {
   WITHDRAWAL_STATUS_LABELS,
 } from "@/hooks/useWallet";
 import { ShopEarningsBreakdown } from "@/components/driver/ShopEarningsBreakdown";
+import { useMyProfile } from "@/hooks/useProfile";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { Link } from "react-router-dom";
 
 import { Wallet, ArrowDownToLine, ArrowUpFromLine, TrendingUp, History, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -41,12 +42,17 @@ export default function DriverWallet() {
   const { data: transactions } = useWalletTransactions(userId);
   const { data: withdrawals } = useWithdrawalRequests(userId);
   const { data: shopSettlement } = useDriverShopSettlement(userId);
+  const { data: profile } = useMyProfile(userId);
   const createWithdrawal = useCreateWithdrawalRequest();
 
   const [tab, setTab] = useState<string>("overview");
-  const [bankName, setBankName] = useState("");
-  const [bankAccount, setBankAccount] = useState("");
   const [selectedShopCode, setSelectedShopCode] = useState<string>("");
+
+  // Bank info comes straight from the driver's saved profile
+  const bankName = profile?.bank_name || "";
+  const bankAccount = profile?.bank_account || "";
+  const bankHolder = profile?.bank_account_holder || "";
+  const hasBankInfo = !!bankName && !!bankAccount;
 
   const balance = Number(wallet?.balance || 0);
   const totalEarned = Number(wallet?.total_earned || 0);
@@ -156,18 +162,27 @@ export default function DriverWallet() {
                 Дэлгүүр бүрийн хүргэлтийн төлбөрийг бүтэн дүнгээр нь татах хүсэлт илгээнэ.
                 Админ баталгаажуулж шилжүүлсний дараа хэтэвчнээс хасагдана.
               </p>
-              <div className="space-y-2">
-                <Input
-                  placeholder="Банкны нэр"
-                  value={bankName}
-                  onChange={(e) => setBankName(e.target.value)}
-                />
-                <Input
-                  placeholder="Дансны дугаар"
-                  value={bankAccount}
-                  onChange={(e) => setBankAccount(e.target.value)}
-                />
-              </div>
+              {/* Saved bank info (from profile) */}
+              {hasBankInfo ? (
+                <div className="rounded-xl bg-secondary/40 p-3">
+                  <p className="text-[11px] text-muted-foreground">Шилжүүлэх данс</p>
+                  <p className="text-sm font-medium text-foreground">{bankName}</p>
+                  <p className="text-sm text-foreground">{bankAccount}</p>
+                  {bankHolder && <p className="text-xs text-muted-foreground">{bankHolder}</p>}
+                  <Link to="/driver/profile" className="text-[11px] text-primary underline mt-1 inline-block">
+                    Дансны мэдээлэл засах
+                  </Link>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    Татах хүсэлт илгээхийн тулд эхлээд профайл хуудсандаа дансны мэдээллээ хадгална уу.
+                  </p>
+                  <Link to="/driver/profile" className="text-[11px] text-primary underline mt-1 inline-block">
+                    Дансны мэдээлэл оруулах
+                  </Link>
+                </div>
+              )}
 
               {settleableShops.length > 0 ? (
                 <div className="space-y-2">
@@ -179,7 +194,7 @@ export default function DriverWallet() {
                     >
                       <AlertDialogTrigger asChild>
                         <button
-                          disabled={createWithdrawal.isPending}
+                          disabled={createWithdrawal.isPending || !hasBankInfo}
                           className="flex w-full items-center justify-between rounded-xl border border-border bg-background p-3 text-left transition-colors hover:bg-secondary/50 disabled:opacity-50"
                         >
                           <div className="min-w-0">
@@ -196,16 +211,29 @@ export default function DriverWallet() {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Мөнгө татах уу?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {shop.name} — ₮{shop.amount.toLocaleString()} ({shop.count} хүргэлт)
-                            татах хүсэлт илгээх гэж байна. Админ зөвшөөрсний дараа банкны данс руу шилжүүлнэ.
+                          <AlertDialogTitle>Татах хүсэлт илгээх үү?</AlertDialogTitle>
+                          <AlertDialogDescription asChild>
+                            <div className="space-y-2 text-sm">
+                              <p>
+                                Та <span className="font-semibold text-foreground">{shop.name}</span> дэлгүүрээс{" "}
+                                <span className="font-semibold text-foreground">₮{shop.amount.toLocaleString()}</span>{" "}
+                                ({shop.count} хүргэлт) татах хүсэлт илгээх гэж байна.
+                              </p>
+                              <div className="rounded-lg bg-secondary/50 p-2.5">
+                                <p className="text-[11px] text-muted-foreground">Шилжүүлэх данс</p>
+                                <p className="font-medium text-foreground">{bankName} — {bankAccount}</p>
+                                {bankHolder && <p className="text-xs text-muted-foreground">{bankHolder}</p>}
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                Админ зөвшөөрсний дараа уг данс руу шилжүүлнэ. Зөвшөөрч байна уу?
+                              </p>
+                            </div>
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Үгүй</AlertDialogCancel>
                           <AlertDialogAction onClick={() => handleWithdrawShop(shop)}>
-                            Тийм
+                            Тийм, илгээх
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>

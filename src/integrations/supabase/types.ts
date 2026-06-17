@@ -335,6 +335,9 @@ export type Database = {
       profiles: {
         Row: {
           active: boolean
+          bank_account: string | null
+          bank_account_holder: string | null
+          bank_name: string | null
           created_at: string
           full_name: string
           id: string
@@ -347,6 +350,9 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          bank_account?: string | null
+          bank_account_holder?: string | null
+          bank_name?: string | null
           created_at?: string
           full_name?: string
           id?: string
@@ -359,6 +365,9 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          bank_account?: string | null
+          bank_account_holder?: string | null
+          bank_name?: string | null
           created_at?: string
           full_name?: string
           id?: string
