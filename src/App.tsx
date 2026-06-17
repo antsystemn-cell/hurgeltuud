@@ -12,6 +12,7 @@ import ResetPassword from "./pages/ResetPassword";
 import DriverRegister from "./pages/DriverRegister";
 import DriverDashboard from "./pages/driver/DriverDashboard";
 import DriverWallet from "./pages/driver/DriverWallet";
+import DriverProfile from "./pages/driver/DriverProfile";
 import OperatorDashboard from "./pages/operator/OperatorDashboard";
 import OrderList from "./pages/shared/OrderList";
 import CreateOrder from "./pages/shared/CreateOrder";
@@ -71,6 +72,7 @@ const App = () => (
             {/* Driver */}
             <Route path="/driver" element={<RequireAuth allowedRoles={["driver"]}><LayoutWrap><DriverDashboard /></LayoutWrap></RequireAuth>} />
             <Route path="/driver/wallet" element={<RequireAuth allowedRoles={["driver"]}><LayoutWrap><DriverWallet /></LayoutWrap></RequireAuth>} />
+            <Route path="/driver/profile" element={<RequireAuth allowedRoles={["driver"]}><LayoutWrap><DriverProfile /></LayoutWrap></RequireAuth>} />
 
             {/* Operator */}
             <Route path="/operator" element={<RequireAuth allowedRoles={["operator"]}><LayoutWrap><OperatorDashboard /></LayoutWrap></RequireAuth>} />
