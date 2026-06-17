@@ -186,57 +186,65 @@ export function useDriverShopSettlement(driverUserId: string) {
     const wallet = walletQ.data;
 
     // Authoritative totals come from the wallet ledger, not from notes.
-    const totalWithdrawn = Number(wallet?.total_withdrawn || 0);
-    const totalPending = reqs
-      .filter((r) => r.status === "pending" || r.status === "approved")
-      .reduce((s, r) => s + Number(r.amount), 0);
+    const totalWithdrawn = Math.round(Number(wallet?.total_withdrawn || 0));
+    const totalPending = Math.round(
+      reqs
+        .filter((r) => r.status === "pending" || r.status === "approved")
+        .reduce((s, r) => s + Number(r.amount), 0)
+    );
 
     // Step 1: attribute what we can to a specific shop via the request note.
+    // Everything is rounded to whole tögrög up front so no fractions can ever
+    // leak into the per-shop view or into a new withdrawal request.
     const attrWithdrawn = new Map<string, number>();
     const attrPending = new Map<string, number>();
     for (const shop of shops) {
       const matched = reqs.filter((r) => (r.note || "").startsWith(shop.name));
       attrWithdrawn.set(
         shop.code,
-        matched
-          .filter((r) => r.status === "completed")
-          .reduce((s, r) => s + Number(r.amount), 0)
+        Math.round(
+          matched
+            .filter((r) => r.status === "completed")
+            .reduce((s, r) => s + Number(r.amount), 0)
+        )
       );
       attrPending.set(
         shop.code,
-        matched
-          .filter((r) => r.status === "pending" || r.status === "approved")
-          .reduce((s, r) => s + Number(r.amount), 0)
+        Math.round(
+          matched
+            .filter((r) => r.status === "pending" || r.status === "approved")
+            .reduce((s, r) => s + Number(r.amount), 0)
+        )
       );
     }
 
     const sumAttrWithdrawn = Array.from(attrWithdrawn.values()).reduce((a, b) => a + b, 0);
     const sumAttrPending = Array.from(attrPending.values()).reduce((a, b) => a + b, 0);
 
-    // Step 2: whatever is left unattributed must still be accounted for.
+    // Step 2: whatever is left unattributed (e.g. an old admin bank transfer
+    // saved without a shop note) must still be accounted for.
     const unattrWithdrawn = Math.max(totalWithdrawn - sumAttrWithdrawn, 0);
     const unattrPending = Math.max(totalPending - sumAttrPending, 0);
 
-    // Step 3: distribute the unattributed part across shops, weighted by each
-    // shop's remaining (un-withdrawn) earnings so totals always reconcile.
+    // Step 3: distribute the unattributed part across shops as WHOLE numbers
+    // (largest-remainder method), weighted by each shop's remaining
+    // (un-withdrawn) earnings so the per-shop totals reconcile EXACTLY with the
+    // wallet ledger and never show fractions.
     const remaining = shops.map((s) =>
-      Math.max(s.total - (attrWithdrawn.get(s.code) || 0) - (attrPending.get(s.code) || 0), 0)
+      Math.max(
+        Math.round(s.total) - (attrWithdrawn.get(s.code) || 0) - (attrPending.get(s.code) || 0),
+        0
+      )
     );
-    const totalRemaining = remaining.reduce((a, b) => a + b, 0);
+    const distWithdrawn = allocateWhole(unattrWithdrawn, remaining);
+    const distPending = allocateWhole(unattrPending, remaining);
 
     return shops.map((shop, i) => {
-      const aw = attrWithdrawn.get(shop.code) || 0;
-      const ap = attrPending.get(shop.code) || 0;
-      const frac =
-        totalRemaining > 0
-          ? remaining[i] / totalRemaining
-          : shops.length > 0
-            ? 1 / shops.length
-            : 0;
-      const withdrawn = aw + unattrWithdrawn * frac;
-      const pending = ap + unattrPending * frac;
-      const outstanding = Math.max(shop.total - withdrawn - pending, 0);
-      return { ...shop, withdrawn, pending, outstanding };
+      const total = Math.round(shop.total);
+      const withdrawn = (attrWithdrawn.get(shop.code) || 0) + distWithdrawn[i];
+      const pending = (attrPending.get(shop.code) || 0) + distPending[i];
+      const outstanding = Math.max(total - withdrawn - pending, 0);
+      return { ...shop, total, withdrawn, pending, outstanding };
     });
   }, [earningsQ.data, withdrawalsQ.data, walletQ.data]);
 
