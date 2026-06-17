@@ -23,6 +23,7 @@ import {
   Wallet,
   Link2,
   WifiOff,
+  UserCircle,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -36,6 +37,7 @@ const navByRole: Record<string, NavItem[]> = {
   driver: [
     { label: "Миний хүргэлтүүд", path: "/driver", icon: <Truck className="h-5 w-5" /> },
     { label: "Хэтэвч", path: "/driver/wallet", icon: <Wallet className="h-5 w-5" /> },
+    { label: "Профайл", path: "/driver/profile", icon: <UserCircle className="h-5 w-5" /> },
   ],
   operator: [
     { label: "Идэвхтэй", path: "/operator", icon: <ClipboardList className="h-5 w-5" /> },
