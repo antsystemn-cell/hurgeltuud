@@ -161,6 +161,34 @@ export type ShopSettlement = ShopEarning & {
   outstanding: number; // still to be settled = earned - withdrawn - pending (Хүлээгдэж буй)
 };
 
+// Distributes a whole-number `amount` across `weights` returning whole-number
+// parts that sum EXACTLY to `amount` (largest-remainder / Hare quota method).
+// Guarantees no fractional tögrög ever appears in the per-shop wallet view.
+function allocateWhole(amount: number, weights: number[]): number[] {
+  const n = weights.length;
+  if (n === 0 || amount <= 0) return weights.map(() => 0);
+  const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+  if (totalWeight <= 0) {
+    // No weighting info — spread as evenly as possible.
+    const base = Math.floor(amount / n);
+    const res = weights.map(() => base);
+    let rem = amount - base * n;
+    for (let i = 0; i < n && rem > 0; i++, rem--) res[i] += 1;
+    return res;
+  }
+
+  const raw = weights.map((w) => (amount * w) / totalWeight);
+  const floored = raw.map((r) => Math.floor(r));
+  let rem = amount - floored.reduce((a, b) => a + b, 0);
+  const byFrac = raw
+    .map((r, i) => ({ i, frac: r - Math.floor(r) }))
+    .sort((a, b) => b.frac - a.frac);
+  for (let k = 0; k < byFrac.length && rem > 0; k++, rem--) floored[byFrac[k].i] += 1;
+  return floored;
+}
+
+
 // Combines a driver's per-shop earnings with their actual wallet withdrawals so
 // each shop can be shown as: total earned (Бүгд), withdrawn (Татсан) and the
 // outstanding amount still to be settled (Хүлээгдэж буй).
