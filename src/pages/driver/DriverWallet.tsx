@@ -13,7 +13,7 @@ import { ShopEarningsBreakdown } from "@/components/driver/ShopEarningsBreakdown
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
-import { Wallet, ArrowDownToLine, ArrowUpFromLine, Clock, TrendingUp, History, Store } from "lucide-react";
+import { Wallet, ArrowDownToLine, ArrowUpFromLine, TrendingUp, History, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
