@@ -85,7 +85,35 @@ export type ShopEarning = {
   total: number;
 };
 
-// Breakdown of a driver's delivery earnings grouped by shop (merchant).
+// Every delivery belongs to an API-connected shop. We resolve a shop identity
+// from the order in this priority: explicit merchant -> the order's source
+// system (EasyShop, Shop Only, ...) -> EasyShop as the final fallback. This
+// guarantees there is never a "Бусад / Тодорхойгүй" bucket.
+type ShopId = { code: string; name: string };
+const FALLBACK_SHOP: ShopId = { code: "easyshop_mn", name: "EasyShop" };
+
+async function fetchSourceSystemMap(): Promise<Map<string, ShopId>> {
+  const { data } = await supabase.from("source_systems").select("id, code, name");
+  const m = new Map<string, ShopId>();
+  for (const s of data || []) m.set(s.id, { code: s.code, name: s.name });
+  return m;
+}
+
+function resolveShop(
+  o: { merchant_code: string | null; merchant_name: string | null; source_system_id: string | null },
+  sysMap: Map<string, ShopId>
+): ShopId {
+  if (o.merchant_code && o.merchant_name) {
+    return { code: o.merchant_code, name: o.merchant_name };
+  }
+  if (o.source_system_id) {
+    const sys = sysMap.get(o.source_system_id);
+    if (sys) return sys;
+  }
+  return FALLBACK_SHOP;
+}
+
+// Breakdown of a driver's delivery earnings grouped by shop.
 // wallet_transactions.order_id has no FK, so we fetch the related orders
 // separately and join them client-side.
 export function useDriverShopEarnings(driverUserId: string) {
@@ -104,29 +132,28 @@ export function useDriverShopEarnings(driverUserId: string) {
         new Set(rows.map((t) => t.order_id).filter((id): id is string => !!id))
       );
 
-      const merchantByOrder = new Map<string, { code: string | null; name: string | null }>();
+      const shopByOrder = new Map<string, ShopId>();
       if (orderIds.length > 0) {
+        const sysMap = await fetchSourceSystemMap();
         const { data: orders, error: oErr } = await supabase
           .from("orders")
-          .select("id, merchant_code, merchant_name")
+          .select("id, merchant_code, merchant_name, source_system_id")
           .in("id", orderIds);
         if (oErr) throw oErr;
         for (const o of orders || []) {
-          merchantByOrder.set(o.id, { code: o.merchant_code, name: o.merchant_name });
+          shopByOrder.set(o.id, resolveShop(o, sysMap));
         }
       }
 
       const groups = new Map<string, ShopEarning>();
       for (const t of rows) {
-        const m = t.order_id ? merchantByOrder.get(t.order_id) : undefined;
-        const code = m?.code || "__none__";
-        const name = m?.name || "Бусад / Тодорхойгүй";
-        const existing = groups.get(code);
+        const shop = (t.order_id ? shopByOrder.get(t.order_id) : undefined) || FALLBACK_SHOP;
+        const existing = groups.get(shop.code);
         if (existing) {
           existing.count += 1;
           existing.total += Number(t.amount);
         } else {
-          groups.set(code, { code, name, count: 1, total: Number(t.amount) });
+          groups.set(shop.code, { code: shop.code, name: shop.name, count: 1, total: Number(t.amount) });
         }
       }
 
@@ -201,18 +228,19 @@ export function useDriverShopSettlement(driverUserId: string) {
         new Set(rows.map((t) => t.order_id).filter((id): id is string => !!id))
       );
 
-      const merchantByOrder = new Map<string, string>();
+      const shopByOrder = new Map<string, string>();
       if (orderIds.length > 0) {
+        const sysMap = await fetchSourceSystemMap();
         const { data: orders, error: oErr } = await supabase
           .from("orders")
-          .select("id, merchant_code")
+          .select("id, merchant_code, merchant_name, source_system_id")
           .in("id", orderIds);
         if (oErr) throw oErr;
-        for (const o of orders || []) merchantByOrder.set(o.id, o.merchant_code || "__none__");
+        for (const o of orders || []) shopByOrder.set(o.id, resolveShop(o, sysMap).code);
       }
 
       return rows.map((t) => ({
-        shopCode: t.order_id ? merchantByOrder.get(t.order_id) || "__none__" : "__none__",
+        shopCode: (t.order_id ? shopByOrder.get(t.order_id) : undefined) || FALLBACK_SHOP.code,
         createdAt: t.created_at,
         amount: Number(t.amount),
       }));
@@ -230,87 +258,80 @@ export function useDriverShopSettlement(driverUserId: string) {
 
     // Every delivery is worth one flat fee (e.g. 8,000₮), so we account for
     // money in WHOLE DELIVERIES. This guarantees every per-shop amount is always
-    // a clean multiple of the fee — no more ugly fractions like 262,552₮ that
-    // came from spreading a withdrawal proportionally by money.
-    const fee =
-      shops.find((s) => s.count > 0)?.total &&
-      shops.find((s) => s.count > 0)!.count
-        ? Math.round(
-            shops.find((s) => s.count > 0)!.total / shops.find((s) => s.count > 0)!.count
-          )
-        : 8000;
+    // a clean multiple of the fee.
+    const withCount = shops.find((s) => s.count > 0);
+    const fee = withCount && withCount.count ? Math.round(withCount.total / withCount.count) : 8000;
     const toUnits = (amount: number) => (fee > 0 ? Math.round(amount / fee) : 0);
 
-    // Authoritative totals come from the wallet ledger, not from notes.
-    const totalWithdrawnUnits = toUnits(Number(wallet?.total_withdrawn || 0));
-    const totalPendingUnits = toUnits(
+    // remaining[shop] = un-settled (outstanding) delivery units, starts at earned.
+    const remaining = new Map<string, number>();
+    for (const s of shops) remaining.set(s.code, s.count);
+
+    const withdrawnByShop = new Map<string, number>();
+    const pendingByShop = new Map<string, number>();
+
+    // Take up to n units from a single shop (capped at what it still has).
+    const take = (code: string, n: number, target: Map<string, number>) => {
+      const avail = remaining.get(code) || 0;
+      const t = Math.min(avail, Math.max(n, 0));
+      if (t > 0) {
+        remaining.set(code, avail - t);
+        target.set(code, (target.get(code) || 0) + t);
+      }
+      return t;
+    };
+
+    // Earliest-first list of delivery units (by shop) for leftover allocation.
+    const fifo = deliveryUnits.flatMap((u) =>
+      Array.from({ length: toUnits(u.amount) }, () => u.shopCode)
+    );
+    const takeFifo = (n: number, target: Map<string, number>) => {
+      let left = n;
+      for (const code of fifo) {
+        if (left <= 0) break;
+        if ((remaining.get(code) || 0) > 0) {
+          take(code, 1, target);
+          left -= 1;
+        }
+      }
+      return n - left;
+    };
+
+    // Match a request note ("<shop name> хүргэлтийн төлбөр") back to a shop.
+    const shopFromNote = (note?: string | null) =>
+      note ? shops.find((s) => note.startsWith(s.name))?.code : undefined;
+
+    // 1) Withdrawn (authoritative total). Attribute note-tagged requests to their
+    // shop first; any leftover (e.g. an old no-note admin transfer) consumes the
+    // earliest deliveries. This keeps every per-shop value a whole-delivery amount.
+    let W = toUnits(Number(wallet?.total_withdrawn || 0));
+    for (const r of reqs.filter((r) => r.status === "completed")) {
+      if (W <= 0) break;
+      const code = shopFromNote(r.note);
+      if (code) W -= take(code, Math.min(toUnits(Number(r.amount)), W), withdrawnByShop);
+    }
+    if (W > 0) W -= takeFifo(W, withdrawnByShop);
+
+    // 2) Pending (authoritative total), same approach on the remaining units.
+    let P = toUnits(
       reqs
         .filter((r) => r.status === "pending" || r.status === "approved")
         .reduce((s, r) => s + Number(r.amount), 0)
     );
-
-    // Step 1: attribute what we can to a specific shop via the request note,
-    // counting in whole deliveries.
-    const attrWithdrawnU = new Map<string, number>();
-    const attrPendingU = new Map<string, number>();
-    for (const shop of shops) {
-      const matched = reqs.filter((r) => (r.note || "").startsWith(shop.name));
-      attrWithdrawnU.set(
-        shop.code,
-        toUnits(
-          matched.filter((r) => r.status === "completed").reduce((s, r) => s + Number(r.amount), 0)
-        )
-      );
-      attrPendingU.set(
-        shop.code,
-        toUnits(
-          matched
-            .filter((r) => r.status === "pending" || r.status === "approved")
-            .reduce((s, r) => s + Number(r.amount), 0)
-        )
-      );
+    for (const r of reqs.filter((r) => r.status === "pending" || r.status === "approved")) {
+      if (P <= 0) break;
+      const code = shopFromNote(r.note);
+      if (code) P -= take(code, Math.min(toUnits(Number(r.amount)), P), pendingByShop);
     }
-
-    const sumAttrWithdrawnU = Array.from(attrWithdrawnU.values()).reduce((a, b) => a + b, 0);
-    const sumAttrPendingU = Array.from(attrPendingU.values()).reduce((a, b) => a + b, 0);
-
-    // Step 2: whatever is left unattributed (e.g. an old admin bank transfer
-    // saved without a shop note) consumes the driver's earliest completed
-    // delivery earnings, not a proportional split. If a 280,000₮ old withdrawal
-    // happened when exactly 35 deliveries existed, it becomes those exact 35
-    // deliveries by shop (e.g. 19 "Бусад" + 16 "Only Shop").
-    const unattrWithdrawnU = Math.max(totalWithdrawnUnits - sumAttrWithdrawnU, 0);
-    const unattrPendingU = Math.max(totalPendingUnits - sumAttrPendingU, 0);
-
-    const distWithdrawnByShop = new Map<string, number>();
-    const distPendingByShop = new Map<string, number>();
-    const availableUnits = deliveryUnits.flatMap((unit) => {
-      const units = toUnits(unit.amount);
-      return Array.from({ length: units }, () => unit.shopCode);
-    });
-
-    for (let i = 0; i < unattrWithdrawnU && i < availableUnits.length; i++) {
-      const code = availableUnits[i];
-      distWithdrawnByShop.set(code, (distWithdrawnByShop.get(code) || 0) + 1);
-    }
-
-    for (
-      let i = unattrWithdrawnU;
-      i < unattrWithdrawnU + unattrPendingU && i < availableUnits.length;
-      i++
-    ) {
-      const code = availableUnits[i];
-      distPendingByShop.set(code, (distPendingByShop.get(code) || 0) + 1);
-    }
+    if (P > 0) P -= takeFifo(P, pendingByShop);
 
     return shops.map((shop) => {
-      const withdrawnU = (attrWithdrawnU.get(shop.code) || 0) + (distWithdrawnByShop.get(shop.code) || 0);
-      const pendingU = (attrPendingU.get(shop.code) || 0) + (distPendingByShop.get(shop.code) || 0);
-      const outstandingU = Math.max(shop.count - withdrawnU - pendingU, 0);
-      const total = shop.count * fee;
+      const withdrawnU = withdrawnByShop.get(shop.code) || 0;
+      const pendingU = pendingByShop.get(shop.code) || 0;
+      const outstandingU = remaining.get(shop.code) || 0;
       return {
         ...shop,
-        total,
+        total: shop.count * fee,
         withdrawn: withdrawnU * fee,
         pending: pendingU * fee,
         outstanding: outstandingU * fee,

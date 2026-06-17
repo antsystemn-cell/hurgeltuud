@@ -62,7 +62,7 @@ type StoreOrder = {
 // Derives the store a delivery belongs to. Prefers merchant name, falls back to source system.
 export function getStoreInfo(order: StoreOrder): StoreInfo {
   const code = order.source_systems?.code || order.source_system_id || "unknown";
-  const sourceName = order.source_systems?.name || "Бусад";
+  const sourceName = order.source_systems?.name || "EasyShop";
   const name = order.merchant_name?.trim() || sourceName;
   const badgeClass = STORE_STYLES[order.source_systems?.code || ""] || UNKNOWN_STORE_STYLE;
   return { key: code, name, badgeClass };
