@@ -10,8 +10,9 @@ import {
   WITHDRAWAL_STATUS_LABELS,
 } from "@/hooks/useWallet";
 import { ShopEarningsBreakdown } from "@/components/driver/ShopEarningsBreakdown";
+import { useMyProfile } from "@/hooks/useProfile";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { Link } from "react-router-dom";
 
 import { Wallet, ArrowDownToLine, ArrowUpFromLine, TrendingUp, History, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
