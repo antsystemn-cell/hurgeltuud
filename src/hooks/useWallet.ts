@@ -228,18 +228,19 @@ export function useDriverShopSettlement(driverUserId: string) {
         new Set(rows.map((t) => t.order_id).filter((id): id is string => !!id))
       );
 
-      const merchantByOrder = new Map<string, string>();
+      const shopByOrder = new Map<string, string>();
       if (orderIds.length > 0) {
+        const sysMap = await fetchSourceSystemMap();
         const { data: orders, error: oErr } = await supabase
           .from("orders")
-          .select("id, merchant_code")
+          .select("id, merchant_code, merchant_name, source_system_id")
           .in("id", orderIds);
         if (oErr) throw oErr;
-        for (const o of orders || []) merchantByOrder.set(o.id, o.merchant_code || "__none__");
+        for (const o of orders || []) shopByOrder.set(o.id, resolveShop(o, sysMap).code);
       }
 
       return rows.map((t) => ({
-        shopCode: t.order_id ? merchantByOrder.get(t.order_id) || "__none__" : "__none__",
+        shopCode: (t.order_id ? shopByOrder.get(t.order_id) : undefined) || FALLBACK_SHOP.code,
         createdAt: t.created_at,
         amount: Number(t.amount),
       }));
