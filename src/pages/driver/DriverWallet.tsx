@@ -41,12 +41,17 @@ export default function DriverWallet() {
   const { data: transactions } = useWalletTransactions(userId);
   const { data: withdrawals } = useWithdrawalRequests(userId);
   const { data: shopSettlement } = useDriverShopSettlement(userId);
+  const { data: profile } = useMyProfile(userId);
   const createWithdrawal = useCreateWithdrawalRequest();
 
   const [tab, setTab] = useState<string>("overview");
-  const [bankName, setBankName] = useState("");
-  const [bankAccount, setBankAccount] = useState("");
   const [selectedShopCode, setSelectedShopCode] = useState<string>("");
+
+  // Bank info comes straight from the driver's saved profile
+  const bankName = profile?.bank_name || "";
+  const bankAccount = profile?.bank_account || "";
+  const bankHolder = profile?.bank_account_holder || "";
+  const hasBankInfo = !!bankName && !!bankAccount;
 
   const balance = Number(wallet?.balance || 0);
   const totalEarned = Number(wallet?.total_earned || 0);
