@@ -124,6 +124,30 @@ export default function WalletManagement() {
     );
   };
 
+  const handleDownloadInvoice = async (r: any) => {
+    const fee = Number(settings?.delivery_fee_per_order) || 8000;
+    const amt = Number(r.amount) || 0;
+    try {
+      await downloadWithdrawalInvoicePdf({
+        requestId: r.id,
+        driverName: getDriverName(r.driver_user_id),
+        amount: amt,
+        shopName: r.note || null,
+        bankName: r.bank_name || null,
+        bankAccount: r.bank_account || null,
+        statusLabel: WITHDRAWAL_STATUS_LABELS[r.status] || r.status,
+        deliveryCount: fee > 0 ? Math.round(amt / fee) : null,
+        createdAt: r.created_at,
+        reviewedAt: r.reviewed_at || null,
+      });
+      toast({ title: "Нэхэмжлэл татагдлаа" });
+    } catch (e) {
+      toast({ title: "PDF үүсгэхэд алдаа гарлаа", variant: "destructive" });
+    }
+  };
+
+
+
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-4">
       <h2 className="text-xl font-semibold text-foreground">Хэтэвч удирдлага</h2>
