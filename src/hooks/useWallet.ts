@@ -85,7 +85,35 @@ export type ShopEarning = {
   total: number;
 };
 
-// Breakdown of a driver's delivery earnings grouped by shop (merchant).
+// Every delivery belongs to an API-connected shop. We resolve a shop identity
+// from the order in this priority: explicit merchant -> the order's source
+// system (EasyShop, Shop Only, ...) -> EasyShop as the final fallback. This
+// guarantees there is never a "Бусад / Тодорхойгүй" bucket.
+type ShopId = { code: string; name: string };
+const FALLBACK_SHOP: ShopId = { code: "easyshop_mn", name: "EasyShop" };
+
+async function fetchSourceSystemMap(): Promise<Map<string, ShopId>> {
+  const { data } = await supabase.from("source_systems").select("id, code, name");
+  const m = new Map<string, ShopId>();
+  for (const s of data || []) m.set(s.id, { code: s.code, name: s.name });
+  return m;
+}
+
+function resolveShop(
+  o: { merchant_code: string | null; merchant_name: string | null; source_system_id: string | null },
+  sysMap: Map<string, ShopId>
+): ShopId {
+  if (o.merchant_code && o.merchant_name) {
+    return { code: o.merchant_code, name: o.merchant_name };
+  }
+  if (o.source_system_id) {
+    const sys = sysMap.get(o.source_system_id);
+    if (sys) return sys;
+  }
+  return FALLBACK_SHOP;
+}
+
+// Breakdown of a driver's delivery earnings grouped by shop.
 // wallet_transactions.order_id has no FK, so we fetch the related orders
 // separately and join them client-side.
 export function useDriverShopEarnings(driverUserId: string) {
@@ -104,29 +132,28 @@ export function useDriverShopEarnings(driverUserId: string) {
         new Set(rows.map((t) => t.order_id).filter((id): id is string => !!id))
       );
 
-      const merchantByOrder = new Map<string, { code: string | null; name: string | null }>();
+      const shopByOrder = new Map<string, ShopId>();
       if (orderIds.length > 0) {
+        const sysMap = await fetchSourceSystemMap();
         const { data: orders, error: oErr } = await supabase
           .from("orders")
-          .select("id, merchant_code, merchant_name")
+          .select("id, merchant_code, merchant_name, source_system_id")
           .in("id", orderIds);
         if (oErr) throw oErr;
         for (const o of orders || []) {
-          merchantByOrder.set(o.id, { code: o.merchant_code, name: o.merchant_name });
+          shopByOrder.set(o.id, resolveShop(o, sysMap));
         }
       }
 
       const groups = new Map<string, ShopEarning>();
       for (const t of rows) {
-        const m = t.order_id ? merchantByOrder.get(t.order_id) : undefined;
-        const code = m?.code || "__none__";
-        const name = m?.name || "Бусад / Тодорхойгүй";
-        const existing = groups.get(code);
+        const shop = (t.order_id ? shopByOrder.get(t.order_id) : undefined) || FALLBACK_SHOP;
+        const existing = groups.get(shop.code);
         if (existing) {
           existing.count += 1;
           existing.total += Number(t.amount);
         } else {
-          groups.set(code, { code, name, count: 1, total: Number(t.amount) });
+          groups.set(shop.code, { code: shop.code, name: shop.name, count: 1, total: Number(t.amount) });
         }
       }
 
