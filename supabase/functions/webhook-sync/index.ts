@@ -166,7 +166,7 @@ serve(async (req) => {
         };
       }
 
-      const omhStatus = toStandardStatus(order.fulfillment_status);
+      const omhStatus = toOmhStatus(order.fulfillment_status);
       const eventId = buildEventId(order);
 
       // Idempotency: if this exact status change was already delivered to
