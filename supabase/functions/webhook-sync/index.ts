@@ -194,6 +194,8 @@ serve(async (req) => {
           internal_order_number: order.internal_order_number,
           fulfillment_status: omhStatus,
           status: omhStatus,
+          // Raw internal status for partners that key off the Hub's own enum.
+          internal_status: order.fulfillment_status,
           payment_status: order.payment_status,
           // Flat driver fields (Only Hub merchant admin display) + nested for back-compat.
           driver_id: driver?.id ?? null,
