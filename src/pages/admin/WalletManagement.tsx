@@ -17,9 +17,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Settings, Wallet, Users, Clock, Plus, Minus, ArrowRight, Eye, Store } from "lucide-react";
+import { Settings, Wallet, Users, Clock, Plus, Minus, ArrowRight, Eye, Store, FileDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { downloadWithdrawalInvoicePdf } from "@/lib/withdrawalInvoice";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -122,6 +123,30 @@ export default function WalletManagement() {
       }
     );
   };
+
+  const handleDownloadInvoice = async (r: any) => {
+    const fee = Number(settings?.delivery_fee_per_order) || 8000;
+    const amt = Number(r.amount) || 0;
+    try {
+      await downloadWithdrawalInvoicePdf({
+        requestId: r.id,
+        driverName: getDriverName(r.driver_user_id),
+        amount: amt,
+        shopName: r.note || null,
+        bankName: r.bank_name || null,
+        bankAccount: r.bank_account || null,
+        statusLabel: WITHDRAWAL_STATUS_LABELS[r.status] || r.status,
+        deliveryCount: fee > 0 ? Math.round(amt / fee) : null,
+        createdAt: r.created_at,
+        reviewedAt: r.reviewed_at || null,
+      });
+      toast({ title: "Нэхэмжлэл татагдлаа" });
+    } catch (e) {
+      toast({ title: "PDF үүсгэхэд алдаа гарлаа", variant: "destructive" });
+    }
+  };
+
+
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-4">
@@ -267,17 +292,23 @@ export default function WalletManagement() {
                 </div>
                 <p className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleString("mn-MN")}</p>
 
-                {r.status === "pending" && (
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="default" onClick={() => handleRequestAction(r.id, r.driver_user_id, Number(r.amount), "completed")}>
-                      <ArrowRight className="h-3 w-3 mr-1" />
-                      Шилжүүлэх
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => handleRequestAction(r.id, r.driver_user_id, Number(r.amount), "rejected")}>
-                      Татгалзах
-                    </Button>
-                  </div>
-                )}
+                <div className="flex flex-wrap gap-2">
+                  {r.status === "pending" && (
+                    <>
+                      <Button size="sm" variant="default" onClick={() => handleRequestAction(r.id, r.driver_user_id, Number(r.amount), "completed")}>
+                        <ArrowRight className="h-3 w-3 mr-1" />
+                        Шилжүүлэх
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleRequestAction(r.id, r.driver_user_id, Number(r.amount), "rejected")}>
+                        Татгалзах
+                      </Button>
+                    </>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => handleDownloadInvoice(r)}>
+                    <FileDown className="h-3 w-3 mr-1" />
+                    Нэхэмжлэл PDF
+                  </Button>
+                </div>
               </div>
             ))
           )}
