@@ -292,17 +292,23 @@ export default function WalletManagement() {
                 </div>
                 <p className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleString("mn-MN")}</p>
 
-                {r.status === "pending" && (
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="default" onClick={() => handleRequestAction(r.id, r.driver_user_id, Number(r.amount), "completed")}>
-                      <ArrowRight className="h-3 w-3 mr-1" />
-                      Шилжүүлэх
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => handleRequestAction(r.id, r.driver_user_id, Number(r.amount), "rejected")}>
-                      Татгалзах
-                    </Button>
-                  </div>
-                )}
+                <div className="flex flex-wrap gap-2">
+                  {r.status === "pending" && (
+                    <>
+                      <Button size="sm" variant="default" onClick={() => handleRequestAction(r.id, r.driver_user_id, Number(r.amount), "completed")}>
+                        <ArrowRight className="h-3 w-3 mr-1" />
+                        Шилжүүлэх
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleRequestAction(r.id, r.driver_user_id, Number(r.amount), "rejected")}>
+                        Татгалзах
+                      </Button>
+                    </>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => handleDownloadInvoice(r)}>
+                    <FileDown className="h-3 w-3 mr-1" />
+                    Нэхэмжлэл PDF
+                  </Button>
+                </div>
               </div>
             ))
           )}
