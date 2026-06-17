@@ -213,32 +213,42 @@ export function useDriverShopSettlement(driverUserId: string) {
     const reqs = withdrawalsQ.data || [];
     const wallet = walletQ.data;
 
+    // Every delivery is worth one flat fee (e.g. 8,000₮), so we account for
+    // money in WHOLE DELIVERIES. This guarantees every per-shop amount is always
+    // a clean multiple of the fee — no more ugly fractions like 262,552₮ that
+    // came from spreading a withdrawal proportionally by money.
+    const fee =
+      shops.find((s) => s.count > 0)?.total &&
+      shops.find((s) => s.count > 0)!.count
+        ? Math.round(
+            shops.find((s) => s.count > 0)!.total / shops.find((s) => s.count > 0)!.count
+          )
+        : 8000;
+    const toUnits = (amount: number) => (fee > 0 ? Math.round(amount / fee) : 0);
+
     // Authoritative totals come from the wallet ledger, not from notes.
-    const totalWithdrawn = Math.round(Number(wallet?.total_withdrawn || 0));
-    const totalPending = Math.round(
+    const totalWithdrawnUnits = toUnits(Number(wallet?.total_withdrawn || 0));
+    const totalPendingUnits = toUnits(
       reqs
         .filter((r) => r.status === "pending" || r.status === "approved")
         .reduce((s, r) => s + Number(r.amount), 0)
     );
 
-    // Step 1: attribute what we can to a specific shop via the request note.
-    // Everything is rounded to whole tögrög up front so no fractions can ever
-    // leak into the per-shop view or into a new withdrawal request.
-    const attrWithdrawn = new Map<string, number>();
-    const attrPending = new Map<string, number>();
+    // Step 1: attribute what we can to a specific shop via the request note,
+    // counting in whole deliveries.
+    const attrWithdrawnU = new Map<string, number>();
+    const attrPendingU = new Map<string, number>();
     for (const shop of shops) {
       const matched = reqs.filter((r) => (r.note || "").startsWith(shop.name));
-      attrWithdrawn.set(
+      attrWithdrawnU.set(
         shop.code,
-        Math.round(
-          matched
-            .filter((r) => r.status === "completed")
-            .reduce((s, r) => s + Number(r.amount), 0)
+        toUnits(
+          matched.filter((r) => r.status === "completed").reduce((s, r) => s + Number(r.amount), 0)
         )
       );
-      attrPending.set(
+      attrPendingU.set(
         shop.code,
-        Math.round(
+        toUnits(
           matched
             .filter((r) => r.status === "pending" || r.status === "approved")
             .reduce((s, r) => s + Number(r.amount), 0)
@@ -246,33 +256,33 @@ export function useDriverShopSettlement(driverUserId: string) {
       );
     }
 
-    const sumAttrWithdrawn = Array.from(attrWithdrawn.values()).reduce((a, b) => a + b, 0);
-    const sumAttrPending = Array.from(attrPending.values()).reduce((a, b) => a + b, 0);
+    const sumAttrWithdrawnU = Array.from(attrWithdrawnU.values()).reduce((a, b) => a + b, 0);
+    const sumAttrPendingU = Array.from(attrPendingU.values()).reduce((a, b) => a + b, 0);
 
     // Step 2: whatever is left unattributed (e.g. an old admin bank transfer
-    // saved without a shop note) must still be accounted for.
-    const unattrWithdrawn = Math.max(totalWithdrawn - sumAttrWithdrawn, 0);
-    const unattrPending = Math.max(totalPending - sumAttrPending, 0);
+    // saved without a shop note) is distributed as WHOLE DELIVERIES across
+    // shops, weighted by each shop's remaining (un-withdrawn) delivery count.
+    const unattrWithdrawnU = Math.max(totalWithdrawnUnits - sumAttrWithdrawnU, 0);
+    const unattrPendingU = Math.max(totalPendingUnits - sumAttrPendingU, 0);
 
-    // Step 3: distribute the unattributed part across shops as WHOLE numbers
-    // (largest-remainder method), weighted by each shop's remaining
-    // (un-withdrawn) earnings so the per-shop totals reconcile EXACTLY with the
-    // wallet ledger and never show fractions.
-    const remaining = shops.map((s) =>
-      Math.max(
-        Math.round(s.total) - (attrWithdrawn.get(s.code) || 0) - (attrPending.get(s.code) || 0),
-        0
-      )
+    const remainingU = shops.map((s) =>
+      Math.max(s.count - (attrWithdrawnU.get(s.code) || 0) - (attrPendingU.get(s.code) || 0), 0)
     );
-    const distWithdrawn = allocateWhole(unattrWithdrawn, remaining);
-    const distPending = allocateWhole(unattrPending, remaining);
+    const distWithdrawnU = allocateWhole(unattrWithdrawnU, remainingU);
+    const distPendingU = allocateWhole(unattrPendingU, remainingU);
 
     return shops.map((shop, i) => {
-      const total = Math.round(shop.total);
-      const withdrawn = (attrWithdrawn.get(shop.code) || 0) + distWithdrawn[i];
-      const pending = (attrPending.get(shop.code) || 0) + distPending[i];
-      const outstanding = Math.max(total - withdrawn - pending, 0);
-      return { ...shop, total, withdrawn, pending, outstanding };
+      const withdrawnU = (attrWithdrawnU.get(shop.code) || 0) + distWithdrawnU[i];
+      const pendingU = (attrPendingU.get(shop.code) || 0) + distPendingU[i];
+      const outstandingU = Math.max(shop.count - withdrawnU - pendingU, 0);
+      const total = shop.count * fee;
+      return {
+        ...shop,
+        total,
+        withdrawn: withdrawnU * fee,
+        pending: pendingU * fee,
+        outstanding: outstandingU * fee,
+      };
     });
   }, [earningsQ.data, withdrawalsQ.data, walletQ.data]);
 
