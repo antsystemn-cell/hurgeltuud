@@ -21,6 +21,21 @@ function toStandardStatus(internal: string | null | undefined): string {
   }
 }
 
+// Only Hub status vocabulary. Only Hub keys SMS / QPay off these exact values:
+//   confirmed, assigned, out_for_delivery, delivered, cancelled
+// IMPORTANT: out_for_delivery must NOT be sent as "in_transit" — Only Hub does
+// not recognize that value, so the "хүргэлтэнд гарсан" SMS would never fire.
+function toOmhStatus(internal: string | null | undefined): string {
+  switch (internal) {
+    case "confirmed": return "confirmed";
+    case "phone_confirmed": return "assigned";
+    case "out_for_delivery": return "out_for_delivery";
+    case "delivered": return "delivered";
+    case "cancelled": return "cancelled";
+    default: return "new";
+  }
+}
+
 // Deterministic event id => identical status changes dedupe to the same id,
 // so duplicate syncs and retries are idempotent on both sides.
 function buildEventId(order: { id: string; fulfillment_status: string | null; payment_status: string | null }): string {
@@ -151,7 +166,7 @@ serve(async (req) => {
         };
       }
 
-      const omhStatus = toStandardStatus(order.fulfillment_status);
+      const omhStatus = toOmhStatus(order.fulfillment_status);
       const eventId = buildEventId(order);
 
       // Idempotency: if this exact status change was already delivered to
@@ -179,6 +194,8 @@ serve(async (req) => {
           internal_order_number: order.internal_order_number,
           fulfillment_status: omhStatus,
           status: omhStatus,
+          // Raw internal status for partners that key off the Hub's own enum.
+          internal_status: order.fulfillment_status,
           payment_status: order.payment_status,
           // Flat driver fields (Only Hub merchant admin display) + nested for back-compat.
           driver_id: driver?.id ?? null,
