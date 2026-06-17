@@ -155,43 +155,15 @@ export default function DriverWallet() {
             <ShopEarningsBreakdown driverUserId={userId} />
           </div>
 
-          {/* Withdrawal form */}
+          {/* Withdrawal form — one whole-amount request per shop */}
           {wallet && balance > 0 && (
             <div className="bg-card border border-border rounded-xl p-4 space-y-3">
               <h3 className="font-medium text-foreground text-sm">Мөнгө татах хүсэлт</h3>
+              <p className="text-[11px] text-muted-foreground">
+                Дэлгүүр бүрийн хүргэлтийн төлбөрийг бүтэн дүнгээр нь татах хүсэлт илгээнэ.
+                Админ баталгаажуулж шилжүүлсний дараа хэтэвчнээс хасагдана.
+              </p>
               <div className="space-y-2">
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Аль дэлгүүрийн төлбөр <span className="text-destructive">*</span></label>
-                  {settleableShops.length > 0 ? (
-                    <Select value={shopFilter} onValueChange={handleShopSelect}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Дэлгүүр сонгох" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {settleableShops.map((s) => (
-                          <SelectItem key={s.code} value={s.code}>
-                            {s.name} — ₮{s.outstanding.toLocaleString()}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <p className="text-[11px] text-muted-foreground">
-                      Татах боломжтой дэлгүүрийн үлдэгдэл алга байна.
-                    </p>
-                  )}
-                  {selectedShopName && (
-                    <p className="text-[11px] text-muted-foreground">
-                      {selectedShopName} хүргэлтийн төлбөр бөглөгдлөө. Дүнгээ багасгаж засварлах боломжтой.
-                    </p>
-                  )}
-                </div>
-                <Input
-                  type="number"
-                  placeholder={`Дүн (хамгийн ихдээ ₮${balance.toLocaleString()})`}
-                  value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(e.target.value)}
-                />
                 <Input
                   placeholder="Банкны нэр"
                   value={bankName}
@@ -203,31 +175,58 @@ export default function DriverWallet() {
                   onChange={(e) => setBankAccount(e.target.value)}
                 />
               </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    className="w-full"
-                    disabled={!shopFilter || !withdrawAmount || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > balance || createWithdrawal.isPending}
-                  >
-                    <ArrowDownToLine className="h-4 w-4 mr-2" />
-                    Татах хүсэлт илгээх
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Мөнгө татах уу?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {selectedShopName ? `${selectedShopName} — ` : ""}₮{Number(withdrawAmount || 0).toLocaleString()} татах хүсэлт илгээх гэж байна. Админ зөвшөөрсний дараа банкны данс руу шилжүүлнэ.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Үгүй</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleWithdraw}>Тийм</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+
+              {settleableShops.length > 0 ? (
+                <div className="space-y-2">
+                  {settleableShops.map((shop) => (
+                    <AlertDialog
+                      key={shop.code}
+                      open={selectedShopCode === shop.code}
+                      onOpenChange={(o) => setSelectedShopCode(o ? shop.code : "")}
+                    >
+                      <AlertDialogTrigger asChild>
+                        <button
+                          disabled={createWithdrawal.isPending}
+                          className="flex w-full items-center justify-between rounded-xl border border-border bg-background p-3 text-left transition-colors hover:bg-secondary/50 disabled:opacity-50"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-foreground">{shop.name}</p>
+                            <p className="text-xs text-muted-foreground">{shop.count} хүргэлт</p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2 pl-2">
+                            <span className="text-sm font-semibold text-foreground">
+                              ₮{shop.amount.toLocaleString()}
+                            </span>
+                            <ArrowDownToLine className="h-4 w-4 text-primary" />
+                          </div>
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Мөнгө татах уу?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {shop.name} — ₮{shop.amount.toLocaleString()} ({shop.count} хүргэлт)
+                            татах хүсэлт илгээх гэж байна. Админ зөвшөөрсний дараа банкны данс руу шилжүүлнэ.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Үгүй</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleWithdrawShop(shop)}>
+                            Тийм
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">
+                  Татах боломжтой дэлгүүрийн үлдэгдэл алга байна.
+                </p>
+              )}
             </div>
           )}
+
 
           {!wallet && (
             <div className="text-center py-8 text-muted-foreground text-sm">
