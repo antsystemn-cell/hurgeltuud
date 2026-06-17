@@ -258,87 +258,80 @@ export function useDriverShopSettlement(driverUserId: string) {
 
     // Every delivery is worth one flat fee (e.g. 8,000₮), so we account for
     // money in WHOLE DELIVERIES. This guarantees every per-shop amount is always
-    // a clean multiple of the fee — no more ugly fractions like 262,552₮ that
-    // came from spreading a withdrawal proportionally by money.
-    const fee =
-      shops.find((s) => s.count > 0)?.total &&
-      shops.find((s) => s.count > 0)!.count
-        ? Math.round(
-            shops.find((s) => s.count > 0)!.total / shops.find((s) => s.count > 0)!.count
-          )
-        : 8000;
+    // a clean multiple of the fee.
+    const withCount = shops.find((s) => s.count > 0);
+    const fee = withCount && withCount.count ? Math.round(withCount.total / withCount.count) : 8000;
     const toUnits = (amount: number) => (fee > 0 ? Math.round(amount / fee) : 0);
 
-    // Authoritative totals come from the wallet ledger, not from notes.
-    const totalWithdrawnUnits = toUnits(Number(wallet?.total_withdrawn || 0));
-    const totalPendingUnits = toUnits(
+    // remaining[shop] = un-settled (outstanding) delivery units, starts at earned.
+    const remaining = new Map<string, number>();
+    for (const s of shops) remaining.set(s.code, s.count);
+
+    const withdrawnByShop = new Map<string, number>();
+    const pendingByShop = new Map<string, number>();
+
+    // Take up to n units from a single shop (capped at what it still has).
+    const take = (code: string, n: number, target: Map<string, number>) => {
+      const avail = remaining.get(code) || 0;
+      const t = Math.min(avail, Math.max(n, 0));
+      if (t > 0) {
+        remaining.set(code, avail - t);
+        target.set(code, (target.get(code) || 0) + t);
+      }
+      return t;
+    };
+
+    // Earliest-first list of delivery units (by shop) for leftover allocation.
+    const fifo = deliveryUnits.flatMap((u) =>
+      Array.from({ length: toUnits(u.amount) }, () => u.shopCode)
+    );
+    const takeFifo = (n: number, target: Map<string, number>) => {
+      let left = n;
+      for (const code of fifo) {
+        if (left <= 0) break;
+        if ((remaining.get(code) || 0) > 0) {
+          take(code, 1, target);
+          left -= 1;
+        }
+      }
+      return n - left;
+    };
+
+    // Match a request note ("<shop name> хүргэлтийн төлбөр") back to a shop.
+    const shopFromNote = (note?: string | null) =>
+      note ? shops.find((s) => note.startsWith(s.name))?.code : undefined;
+
+    // 1) Withdrawn (authoritative total). Attribute note-tagged requests to their
+    // shop first; any leftover (e.g. an old no-note admin transfer) consumes the
+    // earliest deliveries. This keeps every per-shop value a whole-delivery amount.
+    let W = toUnits(Number(wallet?.total_withdrawn || 0));
+    for (const r of reqs.filter((r) => r.status === "completed")) {
+      if (W <= 0) break;
+      const code = shopFromNote(r.note);
+      if (code) W -= take(code, Math.min(toUnits(Number(r.amount)), W), withdrawnByShop);
+    }
+    if (W > 0) W -= takeFifo(W, withdrawnByShop);
+
+    // 2) Pending (authoritative total), same approach on the remaining units.
+    let P = toUnits(
       reqs
         .filter((r) => r.status === "pending" || r.status === "approved")
         .reduce((s, r) => s + Number(r.amount), 0)
     );
-
-    // Step 1: attribute what we can to a specific shop via the request note,
-    // counting in whole deliveries.
-    const attrWithdrawnU = new Map<string, number>();
-    const attrPendingU = new Map<string, number>();
-    for (const shop of shops) {
-      const matched = reqs.filter((r) => (r.note || "").startsWith(shop.name));
-      attrWithdrawnU.set(
-        shop.code,
-        toUnits(
-          matched.filter((r) => r.status === "completed").reduce((s, r) => s + Number(r.amount), 0)
-        )
-      );
-      attrPendingU.set(
-        shop.code,
-        toUnits(
-          matched
-            .filter((r) => r.status === "pending" || r.status === "approved")
-            .reduce((s, r) => s + Number(r.amount), 0)
-        )
-      );
+    for (const r of reqs.filter((r) => r.status === "pending" || r.status === "approved")) {
+      if (P <= 0) break;
+      const code = shopFromNote(r.note);
+      if (code) P -= take(code, Math.min(toUnits(Number(r.amount)), P), pendingByShop);
     }
-
-    const sumAttrWithdrawnU = Array.from(attrWithdrawnU.values()).reduce((a, b) => a + b, 0);
-    const sumAttrPendingU = Array.from(attrPendingU.values()).reduce((a, b) => a + b, 0);
-
-    // Step 2: whatever is left unattributed (e.g. an old admin bank transfer
-    // saved without a shop note) consumes the driver's earliest completed
-    // delivery earnings, not a proportional split. If a 280,000₮ old withdrawal
-    // happened when exactly 35 deliveries existed, it becomes those exact 35
-    // deliveries by shop (e.g. 19 "Бусад" + 16 "Only Shop").
-    const unattrWithdrawnU = Math.max(totalWithdrawnUnits - sumAttrWithdrawnU, 0);
-    const unattrPendingU = Math.max(totalPendingUnits - sumAttrPendingU, 0);
-
-    const distWithdrawnByShop = new Map<string, number>();
-    const distPendingByShop = new Map<string, number>();
-    const availableUnits = deliveryUnits.flatMap((unit) => {
-      const units = toUnits(unit.amount);
-      return Array.from({ length: units }, () => unit.shopCode);
-    });
-
-    for (let i = 0; i < unattrWithdrawnU && i < availableUnits.length; i++) {
-      const code = availableUnits[i];
-      distWithdrawnByShop.set(code, (distWithdrawnByShop.get(code) || 0) + 1);
-    }
-
-    for (
-      let i = unattrWithdrawnU;
-      i < unattrWithdrawnU + unattrPendingU && i < availableUnits.length;
-      i++
-    ) {
-      const code = availableUnits[i];
-      distPendingByShop.set(code, (distPendingByShop.get(code) || 0) + 1);
-    }
+    if (P > 0) P -= takeFifo(P, pendingByShop);
 
     return shops.map((shop) => {
-      const withdrawnU = (attrWithdrawnU.get(shop.code) || 0) + (distWithdrawnByShop.get(shop.code) || 0);
-      const pendingU = (attrPendingU.get(shop.code) || 0) + (distPendingByShop.get(shop.code) || 0);
-      const outstandingU = Math.max(shop.count - withdrawnU - pendingU, 0);
-      const total = shop.count * fee;
+      const withdrawnU = withdrawnByShop.get(shop.code) || 0;
+      const pendingU = pendingByShop.get(shop.code) || 0;
+      const outstandingU = remaining.get(shop.code) || 0;
       return {
         ...shop,
-        total,
+        total: shop.count * fee,
         withdrawn: withdrawnU * fee,
         pending: pendingU * fee,
         outstanding: outstandingU * fee,
