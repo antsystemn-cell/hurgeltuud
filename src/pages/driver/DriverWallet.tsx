@@ -51,50 +51,40 @@ export default function DriverWallet() {
   const createWithdrawal = useCreateWithdrawalRequest();
 
   const [tab, setTab] = useState<string>("overview");
-  const [withdrawAmount, setWithdrawAmount] = useState("");
   const [bankName, setBankName] = useState("");
   const [bankAccount, setBankAccount] = useState("");
-  const [shopFilter, setShopFilter] = useState<string>("");
+  const [selectedShopCode, setSelectedShopCode] = useState<string>("");
 
   const balance = Number(wallet?.balance || 0);
   const totalEarned = Number(wallet?.total_earned || 0);
   const totalWithdrawn = Number(wallet?.total_withdrawn || 0);
 
   // Only shops that still have an outstanding (un-withdrawn) balance can be settled.
-  const settleableShops = (shopSettlement || []).filter((s) => s.outstanding > 0);
+  // Each shop is settled as ONE whole request for its full delivered total — no
+  // manual partial amounts, which kept producing messy fractional withdrawals.
+  const settleableShops = (shopSettlement || [])
+    .map((s) => ({ ...s, amount: Math.round(s.outstanding) }))
+    .filter((s) => s.amount > 0 && s.amount <= balance);
 
-  const handleShopSelect = (code: string) => {
-    setShopFilter(code);
-    const shop = shopSettlement?.find((s) => s.code === code);
-    if (shop) {
-      // Auto-fill with that shop's outstanding amount (capped at available balance).
-      setWithdrawAmount(String(Math.min(shop.outstanding, balance)));
-    }
-  };
-
-  const selectedShopName = shopSettlement?.find((s) => s.code === shopFilter)?.name;
-
-  const handleWithdraw = () => {
+  const handleWithdrawShop = (shop: (typeof settleableShops)[number]) => {
     if (!wallet || !user) return;
-    const amt = Number(withdrawAmount);
-    if (isNaN(amt) || amt <= 0 || amt > balance) {
-      toast({ title: "Алдаа", description: "Зөв дүн оруулна уу", variant: "destructive" });
+    if (shop.amount <= 0 || shop.amount > balance) {
+      toast({ title: "Алдаа", description: "Татах боломжгүй дүн", variant: "destructive" });
       return;
     }
     createWithdrawal.mutate(
       {
         walletId: wallet.id,
         driverUserId: user.id,
-        amount: amt,
+        amount: shop.amount,
         bankName: bankName || undefined,
         bankAccount: bankAccount || undefined,
-        note: selectedShopName ? `${selectedShopName} хүргэлтийн төлбөр` : undefined,
+        note: `${shop.name} хүргэлтийн төлбөр`,
       },
       {
         onSuccess: () => {
           toast({ title: "Хүсэлт илгээгдлээ" });
-          setWithdrawAmount("");
-          setShopFilter("");
+          setSelectedShopCode("");
         },
         onError: (err: unknown) => {
           const message = err instanceof Error ? err.message : "Дахин оролдоно уу";
@@ -103,6 +93,7 @@ export default function DriverWallet() {
       }
     );
   };
+
 
   if (walletLoading) {
     return <div className="p-4 text-center text-muted-foreground">Уншиж байна...</div>;
