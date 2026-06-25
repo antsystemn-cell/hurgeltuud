@@ -134,14 +134,11 @@ serve(async (req) => {
       });
     }
 
-    // Guard: never reopen a terminal order via inbound sync (idempotent + loop safe)
-    const isTerminal = order.fulfillment_status === "delivered" || order.fulfillment_status === "cancelled";
-
     // Build update payload - only update fields that changed
     const updates: Record<string, unknown> = {};
     const changes: Record<string, { old: string; new: string }> = {};
 
-    if (fulfillment_status && fulfillment_status !== order.fulfillment_status && !isTerminal) {
+    if (fulfillment_status && fulfillment_status !== order.fulfillment_status) {
       updates.fulfillment_status = fulfillment_status;
       changes.fulfillment_status = { old: order.fulfillment_status, new: fulfillment_status };
 
@@ -149,6 +146,16 @@ serve(async (req) => {
       if (fulfillment_status === "out_for_delivery") updates.out_for_delivery_at = new Date().toISOString();
       if (fulfillment_status === "delivered") updates.delivered_at = new Date().toISOString();
       if (fulfillment_status === "cancelled") updates.cancelled_at = new Date().toISOString();
+
+      // When a partner/admin reopens an accidentally terminal order, clear the
+      // terminal timestamp that no longer matches the current status. This keeps
+      // partner admin panels, driver views, and downstream webhooks consistent.
+      if (order.fulfillment_status === "delivered" && fulfillment_status !== "delivered") {
+        updates.delivered_at = null;
+      }
+      if (order.fulfillment_status === "cancelled" && fulfillment_status !== "cancelled") {
+        updates.cancelled_at = null;
+      }
     }
 
     if (payment_status && payment_status !== order.payment_status) {
@@ -175,7 +182,7 @@ serve(async (req) => {
     if (Object.keys(changes).length === 0 && !note) {
       return new Response(JSON.stringify({
         success: true,
-        message: isTerminal ? "Order is terminal, ignored" : "No changes needed",
+        message: "No changes needed",
         order_id: order.id,
       }), {
         status: 200,

@@ -172,6 +172,20 @@ serve(async (req) => {
         if (status === "delivered") updates.delivered_at = new Date().toISOString();
         if (status === "cancelled") updates.cancelled_at = new Date().toISOString();
 
+        const { data: current, error: currentError } = await supabase
+          .from("orders")
+          .select("fulfillment_status")
+          .eq("id", order_id)
+          .maybeSingle();
+        if (currentError) return json({ error: currentError.message }, 500);
+
+        if (current?.fulfillment_status === "delivered" && status !== "delivered") {
+          updates.delivered_at = null;
+        }
+        if (current?.fulfillment_status === "cancelled" && status !== "cancelled") {
+          updates.cancelled_at = null;
+        }
+
         const { error } = await supabase.from("orders").update(updates).eq("id", order_id);
         if (error) return json({ error: error.message }, 500);
         return json({ ok: true });
