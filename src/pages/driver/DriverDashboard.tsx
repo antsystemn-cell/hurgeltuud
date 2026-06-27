@@ -452,9 +452,13 @@ export default function DriverDashboard() {
                       <span className="text-foreground">₮{Number(order.total_amount).toLocaleString()}</span>
                     </div>
                   ) : null}
-                  {order.payment_status === "paid" && (
-                    <p className="text-[11px] text-muted-foreground">✓ Жолооч баталсан</p>
-                  )}
+                  {isPaid ? (
+                    <p className="text-[11px] text-emerald-600">
+                      {isEasyShop ? "✓ EasyShop-д төлбөр төлөгдсөн" : "✓ Жолооч баталсан"}
+                    </p>
+                  ) : isEasyShop ? (
+                    <p className="text-[11px] text-amber-600">Төлбөр төлөгдөөгүй — хүлээгдэж байна</p>
+                  ) : null}
                 </div>
 
                 {/* Actions */}
