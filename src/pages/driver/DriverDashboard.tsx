@@ -249,6 +249,11 @@ export default function DriverDashboard() {
           {filteredOrders.map((order, index) => {
             const store = getStoreInfo(order);
             const district = resolveDistrict(order);
+            // EasyShop manages payment externally: the driver never collects or
+            // changes payment. Already-paid orders show as paid/done, unpaid
+            // orders stay unpaid (no "Төлбөр авсан" button for the driver).
+            const isEasyShop = store.key === "easyshop_mn";
+            const isPaid = order.payment_status === "paid";
             return (
             <LongPressCollapsible
               key={order.id}
