@@ -249,6 +249,11 @@ export default function DriverDashboard() {
           {filteredOrders.map((order, index) => {
             const store = getStoreInfo(order);
             const district = resolveDistrict(order);
+            // EasyShop manages payment externally: the driver never collects or
+            // changes payment. Already-paid orders show as paid/done, unpaid
+            // orders stay unpaid (no "Төлбөр авсан" button for the driver).
+            const isEasyShop = store.key === "easyshop_mn";
+            const isPaid = order.payment_status === "paid";
             return (
             <LongPressCollapsible
               key={order.id}
@@ -447,9 +452,13 @@ export default function DriverDashboard() {
                       <span className="text-foreground">₮{Number(order.total_amount).toLocaleString()}</span>
                     </div>
                   ) : null}
-                  {order.payment_status === "paid" && (
-                    <p className="text-[11px] text-muted-foreground">✓ Жолооч баталсан</p>
-                  )}
+                  {isPaid ? (
+                    <p className="text-[11px] text-emerald-600">
+                      {isEasyShop ? "✓ EasyShop-д төлбөр төлөгдсөн" : "✓ Жолооч баталсан"}
+                    </p>
+                  ) : isEasyShop ? (
+                    <p className="text-[11px] text-amber-600">Төлбөр төлөгдөөгүй — хүлээгдэж байна</p>
+                  ) : null}
                 </div>
 
                 {/* Actions */}
@@ -479,8 +488,10 @@ export default function DriverDashboard() {
                     </AlertDialogContent>
                   </AlertDialog>
 
-                  {/* Payment collected button */}
-                  {order.payment_status !== "paid" ? (
+                  {/* Payment collected button.
+                      EasyShop payments are managed externally — the driver can
+                      NOT mark them; unpaid EasyShop orders stay unpaid. */}
+                  {!isEasyShop && order.payment_status !== "paid" ? (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <button
