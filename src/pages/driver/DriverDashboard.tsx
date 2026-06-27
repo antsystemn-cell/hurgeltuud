@@ -488,8 +488,10 @@ export default function DriverDashboard() {
                     </AlertDialogContent>
                   </AlertDialog>
 
-                  {/* Payment collected button */}
-                  {order.payment_status !== "paid" ? (
+                  {/* Payment collected button.
+                      EasyShop payments are managed externally — the driver can
+                      NOT mark them; unpaid EasyShop orders stay unpaid. */}
+                  {!isEasyShop && order.payment_status !== "paid" ? (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <button
