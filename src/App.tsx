@@ -24,6 +24,7 @@ import Reports from "./pages/admin/Reports";
 import PwaSettings from "./pages/admin/PwaSettings";
 import WalletManagement from "./pages/admin/WalletManagement";
 import OnlyHubIntegration from "./pages/admin/OnlyHubIntegration";
+import ShopOnlyDelivery from "./pages/admin/ShopOnlyDelivery";
 import PartnerPortal from "./pages/portal/PartnerPortal";
 import NotFound from "./pages/NotFound";
 import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
@@ -93,6 +94,8 @@ const App = () => (
             <Route path="/admin/pwa" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><PwaSettings /></LayoutWrap></RequireAuth>} />
             <Route path="/admin/wallet" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><WalletManagement /></LayoutWrap></RequireAuth>} />
             <Route path="/admin/only-hub" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><OnlyHubIntegration /></LayoutWrap></RequireAuth>} />
+            <Route path="/admin/shop-only" element={<RequireAuth allowedRoles={["main_admin"]}><LayoutWrap><ShopOnlyDelivery /></LayoutWrap></RequireAuth>} />
+
 
             <Route path="*" element={<NotFound />} />
           </Routes>
