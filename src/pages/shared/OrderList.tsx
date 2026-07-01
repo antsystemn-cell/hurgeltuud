@@ -79,7 +79,7 @@ function EditableAddress({ order, userId }: { order: any; userId: string }) {
   );
 }
 
-export default function OrderList() {
+export default function OrderList({ lockedSourceCode, title }: { lockedSourceCode?: string; title?: string } = {}) {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -87,16 +87,25 @@ export default function OrderList() {
   const [merchantFilter, setMerchantFilter] = useState<string>("all");
   const [driverFilter, setDriverFilter] = useState<string>("all");
 
+  const { data: drivers } = useDrivers();
+  const { data: sources } = useSourceSystems();
+  const { data: merchants } = useMerchants();
+
+  // When locked to a single source (e.g. Only Shop delivery management), resolve
+  // its id and force the source filter to it, hiding the source dropdown.
+  const lockedSourceId = lockedSourceCode
+    ? sources?.find((s) => s.code === lockedSourceCode)?.id
+    : undefined;
+
+  const effectiveSourceId = lockedSourceCode ? lockedSourceId : (sourceFilter !== "all" ? sourceFilter : undefined);
+
   const { data: orders, isLoading } = useOrders({
     fulfillment_status: statusFilter !== "all" ? statusFilter as FulfillmentStatus : undefined,
-    source_system_id: sourceFilter !== "all" ? sourceFilter : undefined,
+    source_system_id: effectiveSourceId,
     merchant_code: merchantFilter !== "all" ? merchantFilter : undefined,
     driver_id: driverFilter !== "all" ? driverFilter : undefined,
     search: search || undefined,
   });
-  const { data: drivers } = useDrivers();
-  const { data: sources } = useSourceSystems();
-  const { data: merchants } = useMerchants();
   const updateStatus = useUpdateOrderStatus();
   const assignDriver = useAssignDriver();
   const updatePayment = useUpdatePaymentStatus();
@@ -135,7 +144,7 @@ export default function OrderList() {
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto">
-      <h2 className="text-xl font-semibold text-foreground">Бүх захиалгууд</h2>
+      <h2 className="text-xl font-semibold text-foreground">{title || "Бүх захиалгууд"}</h2>
 
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[200px]">
@@ -151,13 +160,15 @@ export default function OrderList() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={sourceFilter} onValueChange={setSourceFilter}>
-          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Эх сайт" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Бүх сайт</SelectItem>
-            {sources?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        {!lockedSourceCode && (
+          <Select value={sourceFilter} onValueChange={setSourceFilter}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Эх сайт" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Бүх сайт</SelectItem>
+              {sources?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
         {!!merchants?.length && (
           <Select value={merchantFilter} onValueChange={setMerchantFilter}>
             <SelectTrigger className="w-[180px]"><SelectValue placeholder="Дэлгүүр" /></SelectTrigger>

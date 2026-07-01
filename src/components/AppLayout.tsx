@@ -24,6 +24,7 @@ import {
   Link2,
   WifiOff,
   UserCircle,
+  Store,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -53,6 +54,7 @@ const navByRole: Record<string, NavItem[]> = {
     { label: "Хэрэглэгчид", path: "/admin/users", icon: <Users className="h-5 w-5" /> },
     { label: "Эх сайтууд", path: "/admin/sources", icon: <Globe className="h-5 w-5" /> },
     { label: "Only Hub холболт", path: "/admin/only-hub", icon: <Link2 className="h-5 w-5" /> },
+    { label: "Only Shop хүргэлт", path: "/admin/shop-only", icon: <Store className="h-5 w-5" /> },
     { label: "Тайлан", path: "/admin/reports", icon: <BarChart3 className="h-5 w-5" /> },
     { label: "Хэвлэх", path: "/admin/print", icon: <Printer className="h-5 w-5" /> },
     { label: "Тохиргоо", path: "/admin/settings", icon: <Settings className="h-5 w-5" /> },
