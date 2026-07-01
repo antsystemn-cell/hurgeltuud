@@ -79,7 +79,7 @@ function EditableAddress({ order, userId }: { order: any; userId: string }) {
   );
 }
 
-export default function OrderList() {
+export default function OrderList({ lockedSourceCode, title }: { lockedSourceCode?: string; title?: string } = {}) {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -87,16 +87,25 @@ export default function OrderList() {
   const [merchantFilter, setMerchantFilter] = useState<string>("all");
   const [driverFilter, setDriverFilter] = useState<string>("all");
 
+  const { data: drivers } = useDrivers();
+  const { data: sources } = useSourceSystems();
+  const { data: merchants } = useMerchants();
+
+  // When locked to a single source (e.g. Only Shop delivery management), resolve
+  // its id and force the source filter to it, hiding the source dropdown.
+  const lockedSourceId = lockedSourceCode
+    ? sources?.find((s) => s.code === lockedSourceCode)?.id
+    : undefined;
+
+  const effectiveSourceId = lockedSourceCode ? lockedSourceId : (sourceFilter !== "all" ? sourceFilter : undefined);
+
   const { data: orders, isLoading } = useOrders({
     fulfillment_status: statusFilter !== "all" ? statusFilter as FulfillmentStatus : undefined,
-    source_system_id: sourceFilter !== "all" ? sourceFilter : undefined,
+    source_system_id: effectiveSourceId,
     merchant_code: merchantFilter !== "all" ? merchantFilter : undefined,
     driver_id: driverFilter !== "all" ? driverFilter : undefined,
     search: search || undefined,
   });
-  const { data: drivers } = useDrivers();
-  const { data: sources } = useSourceSystems();
-  const { data: merchants } = useMerchants();
   const updateStatus = useUpdateOrderStatus();
   const assignDriver = useAssignDriver();
   const updatePayment = useUpdatePaymentStatus();
