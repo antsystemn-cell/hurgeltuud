@@ -144,7 +144,7 @@ export default function OrderList({ lockedSourceCode, title }: { lockedSourceCod
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto">
-      <h2 className="text-xl font-semibold text-foreground">Бүх захиалгууд</h2>
+      <h2 className="text-xl font-semibold text-foreground">{title || "Бүх захиалгууд"}</h2>
 
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[200px]">
@@ -160,13 +160,15 @@ export default function OrderList({ lockedSourceCode, title }: { lockedSourceCod
             ))}
           </SelectContent>
         </Select>
-        <Select value={sourceFilter} onValueChange={setSourceFilter}>
-          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Эх сайт" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Бүх сайт</SelectItem>
-            {sources?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        {!lockedSourceCode && (
+          <Select value={sourceFilter} onValueChange={setSourceFilter}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Эх сайт" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Бүх сайт</SelectItem>
+              {sources?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
         {!!merchants?.length && (
           <Select value={merchantFilter} onValueChange={setMerchantFilter}>
             <SelectTrigger className="w-[180px]"><SelectValue placeholder="Дэлгүүр" /></SelectTrigger>
